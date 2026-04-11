@@ -1,4 +1,4 @@
-# MRLC Finance & Operations Ledger
+#Finance & Operations Ledger
 
 Created by Tao Mon Lae / App Version 1.0
 
