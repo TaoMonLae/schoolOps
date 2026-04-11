@@ -82,12 +82,44 @@ function getOpenMovement(studentId) {
 }
 
 function getLinkedStudentForUser(userId) {
-  return db.prepare(`
+  const direct = db.prepare(`
     SELECT id, user_id, name, level, hostel_status, dorm_house, room, bed_number
     FROM students
     WHERE user_id = ? AND status = 'active'
     LIMIT 1
   `).get(userId);
+  if (direct) return direct;
+
+  const user = db.prepare(`
+    SELECT id, name, username, role, is_active, login_disabled
+    FROM users
+    WHERE id = ?
+  `).get(userId);
+
+  if (!user || user.role !== 'student' || !user.is_active || user.login_disabled) return null;
+
+  const candidates = db.prepare(`
+    SELECT id, user_id, name, level, hostel_status, dorm_house, room, bed_number
+    FROM students
+    WHERE status = 'active'
+      AND user_id IS NULL
+      AND (
+        lower(trim(name)) = lower(trim(?))
+        OR lower(trim(name)) = lower(trim(?))
+      )
+    ORDER BY id ASC
+    LIMIT 2
+  `).all(user.name || '', user.username || '');
+
+  if (candidates.length !== 1) return null;
+
+  const student = candidates[0];
+  db.prepare('UPDATE students SET user_id = ? WHERE id = ? AND user_id IS NULL').run(user.id, student.id);
+
+  return {
+    ...student,
+    user_id: user.id,
+  };
 }
 
 function createMovementLog({
