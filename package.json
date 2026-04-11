@@ -1,0 +1,30 @@
+{
+  "name": "mrlc-ledger",
+  "version": "1.0.0",
+  "description": "SchoolOps",
+  "main": "server/index.js",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "nodemon server/index.js",
+    "seed": "npm run seed:demo",
+    "seed:demo": "node server/db/seed.js",
+    "bootstrap:admin": "node server/db/bootstrap-admin.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^9.4.3",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^17.3.1",
+    "express": "^4.18.3",
+    "jsonwebtoken": "^9.0.2",
+    "pdfkit": "^0.14.0",
+    "sql.js": "^1.14.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
