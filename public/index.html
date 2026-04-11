@@ -349,6 +349,9 @@
       gap: 12px;
       flex-shrink: 0;
       flex-wrap: wrap;
+      overflow: visible;
+      position: relative;
+      z-index: 120;
     }
     .topbar h2 { font-size: 17px; font-weight: 700; flex: 1; letter-spacing: -.01em; }
     .topbar-leading {
@@ -365,6 +368,8 @@
       margin-left: auto;
       flex-wrap: wrap;
       justify-content: flex-end;
+      position: relative;
+      overflow: visible;
     }
     .menu-toggle {
       display: none;
@@ -435,7 +440,7 @@
     }
 
     /* ── Notifications ─────────────────────────────── */
-    .notification-wrap { position: relative; }
+    .notification-wrap { position: relative; overflow: visible; z-index: 130; }
     .notification-bell {
       position: relative;
       border: 1.5px solid var(--border);
