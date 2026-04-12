@@ -409,7 +409,8 @@
     }
     .page-subtitle { font-size: 12.5px; color: var(--mid); max-width: 760px; }
     .topbar-date { font-size: 12px; color: var(--muted); white-space: nowrap; font-weight: 500; }
-    .topbar-page-select { max-width: 220px; }
+    /* Hidden on desktop — sidebar handles navigation; visible on mobile only */
+    .topbar-page-select { display: none; max-width: 220px; }
     .topbar-meta {
       display: inline-flex;
       align-items: center;
@@ -534,6 +535,8 @@
       box-shadow: var(--shadow-sm);
       padding: 22px;
       min-width: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
     .card-title {
       font-size: 14.5px;
@@ -1229,7 +1232,7 @@
       .sticky-card { position: static; }
       .topbar { padding: 12px 18px; }
       .topbar-trailing { width: 100%; margin-left: 0; justify-content: flex-start; }
-      .topbar-page-select { max-width: 280px; }
+      .topbar-page-select { display: block; max-width: 280px; }
       .filters select, .filters input { flex: 1 1 180px; min-width: 160px; }
       .hero-row { align-items: flex-start; }
       .login-shell { grid-template-columns: 1fr; }
@@ -1251,7 +1254,7 @@
       .topbar-leading, .topbar-trailing { width: 100%; }
       .topbar-leading { align-items: flex-start; }
       .topbar-trailing { gap: 8px; justify-content: stretch; }
-      .topbar-page-select { max-width: none; width: 100%; }
+      .topbar-page-select { display: block; max-width: none; width: 100%; }
       .topbar-date { width: 100%; }
       .page-content { padding: 13px; }
       .form-grid { grid-template-columns: 1fr; }

@@ -50,9 +50,6 @@ const PAGE_META = {
   },
   student_movement: {
     subtitle: 'Clock yourself out and back in, and check your outing history.',
-    ctaLabel: 'View my history',
-    ctaType: 'page',
-    targetPage: 'duty_history',
   },
   expenditures: {
     subtitle: 'Record general spending clearly so reports stay trustworthy.',
@@ -162,6 +159,7 @@ function LoginPage() {
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const showDemoCredentials = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   const handle = async (e) => {
@@ -189,7 +187,7 @@ function LoginPage() {
             <h1>{settings.school_name}</h1>
             <small>{settings.subtitle}</small>
           </div>
-          {error && <div className="login-error">{error}</div>}
+          {error && <div className="login-error" role="alert">{error}</div>}
           <form className="login-form" onSubmit={handle}>
             <div className="form-group">
               <label>Username</label>
@@ -202,13 +200,30 @@ function LoginPage() {
             </div>
             <div className="form-group">
               <label>Password</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="Enter password"
-                required
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Enter password"
+                  required
+                  style={{ paddingRight: 42 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  style={{
+                    position: 'absolute', right: 10, top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', padding: '4px',
+                    color: 'var(--muted)', cursor: 'pointer', fontSize: 15,
+                    lineHeight: 1,
+                  }}
+                >
+                  {showPassword ? '🙈' : '👁'}
+                </button>
+              </div>
             </div>
             <button className="btn btn-primary login-submit" type="submit" disabled={busy}>
               {busy ? 'Signing in…' : 'Sign In'}
@@ -434,6 +449,13 @@ function AppShell() {
   useEffect(() => {
     setMobileNavOpen(false);
   }, [page]);
+
+  useEffect(() => {
+    const raw = PAGE_TITLES[page] || page;
+    // Strip leading emoji/non-word characters for a clean browser tab title
+    const clean = raw.replace(/^[\p{Emoji}\s]+/u, '').trim();
+    document.title = `${clean} — ${settings?.school_name || 'SchoolOps'}`;
+  }, [page, settings?.school_name]);
 
   useEffect(() => {
     const close = () => setMobileNavOpen(false);

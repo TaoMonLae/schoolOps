@@ -104,9 +104,8 @@ window.Dashboard = function Dashboard({ user, setPage }) {
               <div className="hero-pill"><span>Priority</span><strong>{biggestRisk}</strong></div>
             </div>
             <div className="hero-actions">
-              <button className="btn btn-primary" onClick={load}>🔄 Refresh numbers</button>
-              {role !== 'student' && <button className="btn btn-secondary" onClick={() => setPage('attendance')}>🛏️ Attendance</button>}
-              <button className="btn btn-secondary" onClick={() => setPage(role === 'student' ? 'duty_submit' : 'fees')}>
+              {role !== 'student' && <button className="btn btn-primary" onClick={() => setPage('attendance')}>🛏️ Attendance</button>}
+              <button className="btn btn-primary" onClick={() => setPage(role === 'student' ? 'duty_submit' : 'fees')}>
                 {role === 'student' ? '✍️ Submit duty log' : '💰 Fee follow-up'}
               </button>
             </div>

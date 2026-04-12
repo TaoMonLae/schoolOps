@@ -72,7 +72,7 @@ window.NotificationsBell = function NotificationsBell({ user }) {
 
   return (
     <div className="notification-wrap">
-      <button className="notification-bell" onClick={() => setOpen((v) => !v)} title="Notifications">
+      <button className="notification-bell" onClick={() => setOpen((v) => !v)} title="Notifications" aria-label={unread > 0 ? `Notifications — ${unread} unread` : 'Notifications'} aria-expanded={open}>
         🔔
         {unread > 0 && <span className="notification-pill">{unread > 99 ? '99+' : unread}</span>}
       </button>
