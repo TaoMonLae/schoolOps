@@ -360,6 +360,7 @@ const PAGE_TITLES = {
 function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuToggle }) {
   const pageMeta = PAGE_META[page] || {};
   const roleLabel = user?.role ? `${String(user.role).charAt(0).toUpperCase()}${String(user.role).slice(1)}` : 'Account';
+  const identityLabel = `${user?.name || 'User'} · ${roleLabel}`;
 
   const handleCTA = () => {
     if (pageMeta.ctaType === 'page' && pageMeta.targetPage) setPage(pageMeta.targetPage);
@@ -373,11 +374,12 @@ function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuT
         <div className="page-heading">
           <div className="page-kicker">SchoolOps Workspace</div>
           <h2>{PAGE_TITLES[page] || page}</h2>
+          <div className="topbar-identity mobile-only">{identityLabel}</div>
           <div className="page-subtitle">{pageMeta.subtitle || 'Use the navigation to move through the ledger.'}</div>
         </div>
       </div>
       <div className="topbar-trailing">
-        <div className="topbar-meta">
+        <div className="topbar-meta desktop-only">
           <span className="context-chip role">
             <span>Role</span>
             <strong>{roleLabel}</strong>
@@ -396,12 +398,12 @@ function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuT
           {pageOptions.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
         {pageMeta.ctaLabel ? (
-          <button className="btn btn-secondary btn-sm" type="button" onClick={handleCTA} disabled={forcePasswordChange}>
+          <button className="btn btn-secondary btn-sm topbar-cta" type="button" onClick={handleCTA} disabled={forcePasswordChange}>
             {pageMeta.ctaLabel}
           </button>
         ) : null}
         <window.NotificationsBell user={user} />
-        <span className="topbar-date">
+        <span className="topbar-date desktop-only">
           {new Date().toLocaleDateString('en-MY', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
         </span>
       </div>
@@ -440,6 +442,16 @@ function AppShell() {
     window.addEventListener('resize', close);
     return () => window.removeEventListener('resize', close);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    if (window.innerWidth <= 700 && mobileNavOpen) {
+      document.body.style.overflow = 'hidden';
+      return () => { document.body.style.overflow = ''; };
+    }
+    document.body.style.overflow = '';
+    return undefined;
+  }, [mobileNavOpen]);
 
   const renderPage = () => {
     switch (page) {
