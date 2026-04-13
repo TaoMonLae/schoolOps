@@ -233,7 +233,7 @@ window.Students = function Students({ user }) {
   return (
     <div>
       <window.FilterBar actions={isAdmin ? (
-        <div style={{ display:'flex', gap:6 }}>
+        <div className="action-group students-toolbar-actions">
           <button className="btn btn-secondary" onClick={handleDownloadTemplate} title="Download import template">📋 Template</button>
           <button className="btn btn-secondary" onClick={handleImportClick} disabled={importing} title="Import students from Excel">
             {importing ? 'Importing…' : '📥 Import'}
@@ -245,16 +245,16 @@ window.Students = function Students({ user }) {
           <input ref={importFileRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={handleImportFile} />
         </div>
       ) : null}>
-        <input style={{ width: 260 }} placeholder="🔍 Search student/contact/phone…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        <input className="students-search" placeholder="🔍 Search student/contact/phone…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         <select value={filter} onChange={e => { setFilter(e.target.value); setPage(1); }}>
           <option value="all">All Students</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
-        <select value={month} onChange={e => setMonth(+e.target.value)} style={{ width: 130 }}>
+        <select className="students-period-month" value={month} onChange={e => setMonth(+e.target.value)}>
           {window.MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
         </select>
-        <select value={year} onChange={e => setYear(+e.target.value)} style={{ width: 90 }}>
+        <select className="students-period-year" value={year} onChange={e => setYear(+e.target.value)}>
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
       </window.FilterBar>
@@ -264,7 +264,8 @@ window.Students = function Students({ user }) {
           <window.StatePanel type="loading" message="Loading students…" />
         ) : (
           <>
-            <table>
+            <div className="table-scroll">
+              <table>
               <thead>
                 <tr>
                   <th>Name</th><th>Level</th><th>Gender</th>
@@ -301,7 +302,7 @@ window.Students = function Students({ user }) {
                       }
                     </td>
                     <td>
-                      <div style={{ display:'flex', gap:6 }}>
+                      <div className="action-group student-row-actions">
                         {isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>✏️</button>}
                         <button className="btn btn-secondary btn-sm" onClick={() => openContacts(s)} title="Manage contacts">📇</button>
                         <button className="btn btn-secondary btn-sm" onClick={() => openHistory(s)}>💳</button>
@@ -316,7 +317,8 @@ window.Students = function Students({ user }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
             <div style={{ padding: '12px 16px' }}>
               <window.Pagination page={page} total={filtered.length} perPage={PER} onChange={setPage} />
             </div>
@@ -324,7 +326,7 @@ window.Students = function Students({ user }) {
         )}
       </div>
 
-      <div style={{ display:'flex', gap:12, marginTop:12, fontSize:13, color:'var(--mid)' }}>
+      <div className="inline-stats students-inline-stats">
         <span>Total: <strong>{filtered.length}</strong></span>
         <span>Active: <strong>{filtered.filter(r=>r.status==='active').length}</strong></span>
         <span>Paid this month: <strong style={{ color:'var(--green)' }}>{filtered.filter(r=>r.current_month_status==='paid').length}</strong></span>
@@ -416,7 +418,7 @@ window.Students = function Students({ user }) {
 
       {contactsModal && (
         <window.Modal title={`Contacts — ${contactsModal.name}`} onClose={() => setContactsModal(null)} size="lg">
-          <div style={{ display:'flex', justifyContent:'space-between', marginBottom: 12 }}>
+          <div className="action-group contacts-modal-head" style={{ marginBottom: 12 }}>
             <div style={{ color:'var(--muted)', fontSize: 12 }}>Teachers can view contacts. Only admins can edit.</div>
             {isAdmin && <button className="btn btn-primary btn-sm" onClick={startAddContact}>+ Add Contact</button>}
           </div>
@@ -424,7 +426,8 @@ window.Students = function Students({ user }) {
           {contacts.length === 0 ? (
             <div className="empty"><div className="icon">📇</div>No contacts yet</div>
           ) : (
-            <table>
+            <div className="table-scroll">
+              <table>
               <thead><tr><th>Name</th><th>Type</th><th>Phone</th><th>Flags</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
                 {contacts.map(c => (
@@ -443,7 +446,7 @@ window.Students = function Students({ user }) {
                     <td>{c.preferred_contact ? '⭐ Preferred ' : ''}{c.emergency_contact ? '🚨 Emergency' : '—'}</td>
                     <td><window.StatusBadge status={c.is_active ? 'active' : 'inactive'} /></td>
                     <td>
-                      <div style={{ display:'flex', gap:6 }}>
+                      <div className="action-group student-row-actions">
                         {c.phone && <a className="btn btn-secondary btn-sm" href={`tel:${formatPhoneHref(c.phone)}`}>📞</a>}
                         {isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => startEditContact(c)}>✏️</button>}
                         {isAdmin && c.is_active && <button className="btn btn-danger btn-sm" onClick={() => deactivateContact(c)}>⊘</button>}
@@ -452,7 +455,8 @@ window.Students = function Students({ user }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
 
           {contactForm && isAdmin && (
@@ -483,7 +487,8 @@ window.Students = function Students({ user }) {
           {history.payments.length === 0 ? (
             <div className="empty"><div className="icon">💳</div>No payment records</div>
           ) : (
-            <table>
+            <div className="table-scroll">
+              <table>
               <thead><tr><th>Period</th><th>Amount</th><th>Date</th><th>Method</th><th>Received By</th></tr></thead>
               <tbody>
                 {history.payments.map(p => (
@@ -496,14 +501,15 @@ window.Students = function Students({ user }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           )}
         </window.Modal>
       )}
 
       {importResult && (
         <window.Modal title="Import Results" onClose={() => setImportResult(null)}>
-          <div style={{ display:'flex', gap:24, marginBottom:16 }}>
+          <div className="inline-stats" style={{ marginBottom:16 }}>
             <div style={{ textAlign:'center' }}>
               <div style={{ fontSize:28, fontWeight:700, color:'var(--green)' }}>{importResult.imported}</div>
               <div style={{ fontSize:12, color:'var(--muted)' }}>Imported</div>
