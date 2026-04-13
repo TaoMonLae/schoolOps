@@ -90,7 +90,7 @@ window.Dashboard = function Dashboard({ user, setPage }) {
     <div className="section-stack">
       <div className="hero-card">
         <div className="hero-row">
-          <div>
+          <div className="hero-main">
             <div className="hero-eyebrow">Today at a glance</div>
             <div className="hero-title">{attentionLabel}</div>
             <div className="hero-copy">
@@ -111,7 +111,7 @@ window.Dashboard = function Dashboard({ user, setPage }) {
               </button>
             </div>
           </div>
-          <div className="summary-strip" style={{ marginBottom: 0, minWidth: 'min(100%, 360px)' }}>
+          <div className="summary-strip hero-summary">
             <div className="summary-tile">
               <div className="summary-tile-label">Unread reminders</div>
               <div className="summary-tile-value">{reminders.length}</div>
@@ -275,19 +275,21 @@ window.Dashboard = function Dashboard({ user, setPage }) {
             {!attendance?.absentStudents?.length ? (
               <div style={{ color:'var(--muted)', padding: '0 18px 18px' }}>No absences recorded today.</div>
             ) : (
-              <table>
-                <thead><tr><th>Student</th><th>Level</th><th>Hostel</th><th>Notes</th></tr></thead>
-                <tbody>
-                  {attendance.absentStudents.map((s) => (
-                    <tr key={s.id}>
-                      <td>{s.name}</td>
-                      <td>{s.level}</td>
-                      <td>{s.hostel_status === 'boarder' ? `${s.dorm_house || '—'} / ${s.room || '—'}` : 'Non-boarder'}</td>
-                      <td>{s.notes || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="table-scroll">
+                <table>
+                  <thead><tr><th>Student</th><th>Level</th><th>Hostel</th><th>Notes</th></tr></thead>
+                  <tbody>
+                    {attendance.absentStudents.map((s) => (
+                      <tr key={s.id}>
+                        <td>{s.name}</td>
+                        <td>{s.level}</td>
+                        <td>{s.hostel_status === 'boarder' ? `${s.dorm_house || '—'} / ${s.room || '—'}` : 'Non-boarder'}</td>
+                        <td>{s.notes || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
@@ -301,17 +303,19 @@ window.Dashboard = function Dashboard({ user, setPage }) {
                 <div className="icon">✅</div>All students have paid!
               </div>
             ) : (
-              <table>
-                <thead><tr><th>Student</th><th>Fee</th></tr></thead>
-                <tbody>
-                  {data.outstanding.map((s, i) => (
-                    <tr key={i}>
-                      <td>{s.name}</td>
-                      <td style={{ color:'var(--red)', fontWeight:600 }}>{fmtRM(s.fee_amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="table-scroll">
+                <table>
+                  <thead><tr><th>Student</th><th>Fee</th></tr></thead>
+                  <tbody>
+                    {data.outstanding.map((s, i) => (
+                      <tr key={i}>
+                        <td>{s.name}</td>
+                        <td style={{ color:'var(--red)', fontWeight:600 }}>{fmtRM(s.fee_amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
@@ -321,14 +325,16 @@ window.Dashboard = function Dashboard({ user, setPage }) {
               <button className="btn btn-secondary btn-sm" onClick={() => setPage('inventory')}>Open inventory</button>
             </div>
             {inventoryData.latestMovements.length === 0 ? <div style={{ color:'var(--muted)', padding: '0 18px 18px' }}>No stock movements yet.</div> : (
-              <table>
-                <thead><tr><th>Date</th><th>Item</th><th>Type</th><th style={{ textAlign:'right' }}>Qty</th></tr></thead>
-                <tbody>
-                  {inventoryData.latestMovements.map((m) => (
-                    <tr key={m.id}><td>{m.movement_date}</td><td>{m.item_name}</td><td><span className="badge badge-blue">{m.movement_type}</span></td><td style={{ textAlign:'right' }}>{m.quantity} {m.unit}</td></tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="table-scroll">
+                <table>
+                  <thead><tr><th>Date</th><th>Item</th><th>Type</th><th style={{ textAlign:'right' }}>Qty</th></tr></thead>
+                  <tbody>
+                    {inventoryData.latestMovements.map((m) => (
+                      <tr key={m.id}><td>{m.movement_date}</td><td>{m.item_name}</td><td><span className="badge badge-blue">{m.movement_type}</span></td><td style={{ textAlign:'right' }}>{m.quantity} {m.unit}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -344,24 +350,26 @@ window.Dashboard = function Dashboard({ user, setPage }) {
                 <div className="icon">✅</div>No arrears for this period
               </div>
             ) : (
-              <table>
-                <thead><tr><th>Student</th><th>Overdue</th><th style={{ textAlign:'right' }}>Outstanding</th></tr></thead>
-                <tbody>
-                  {data.topOverdueStudents.map((s) => (
-                    <tr key={s.id}>
-                      <td>
-                        <strong>{s.name}</strong>
-                        <div style={{ fontSize:12, color:'var(--muted)' }}>{s.level}</div>
-                      </td>
-                      <td>
-                        {s.overdue_months} month{s.overdue_months > 1 ? 's' : ''}
-                        <div><window.StatusBadge status={s.arrears_status} /></div>
-                      </td>
-                      <td style={{ textAlign:'right', color:'var(--red)', fontWeight:700 }}>{fmtRM(s.outstanding_amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="table-scroll">
+                <table>
+                  <thead><tr><th>Student</th><th>Overdue</th><th style={{ textAlign:'right' }}>Outstanding</th></tr></thead>
+                  <tbody>
+                    {data.topOverdueStudents.map((s) => (
+                      <tr key={s.id}>
+                        <td>
+                          <strong>{s.name}</strong>
+                          <div style={{ fontSize:12, color:'var(--muted)' }}>{s.level}</div>
+                        </td>
+                        <td>
+                          {s.overdue_months} month{s.overdue_months > 1 ? 's' : ''}
+                          <div><window.StatusBadge status={s.arrears_status} /></div>
+                        </td>
+                        <td style={{ textAlign:'right', color:'var(--red)', fontWeight:700 }}>{fmtRM(s.outstanding_amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
@@ -371,14 +379,16 @@ window.Dashboard = function Dashboard({ user, setPage }) {
               <button className="btn btn-secondary btn-sm" onClick={() => setPage('inventory')}>Go to inventory</button>
             </div>
             {inventoryData.lowStock.length === 0 ? <div style={{ color:'var(--muted)', padding: '0 18px 18px' }}>No low stock alerts.</div> : (
-              <table>
-                <thead><tr><th>Item</th><th>Category</th><th style={{ textAlign:'right' }}>Stock</th></tr></thead>
-                <tbody>
-                  {inventoryData.lowStock.map((i) => (
-                    <tr key={i.id}><td>{i.name}</td><td>{i.category_name || '—'}</td><td style={{ textAlign:'right', color:'var(--red)', fontWeight:700 }}>{i.current_stock} {i.unit}</td></tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="table-scroll">
+                <table>
+                  <thead><tr><th>Item</th><th>Category</th><th style={{ textAlign:'right' }}>Stock</th></tr></thead>
+                  <tbody>
+                    {inventoryData.lowStock.map((i) => (
+                      <tr key={i.id}><td>{i.name}</td><td>{i.category_name || '—'}</td><td style={{ textAlign:'right', color:'var(--red)', fontWeight:700 }}>{i.current_stock} {i.unit}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
