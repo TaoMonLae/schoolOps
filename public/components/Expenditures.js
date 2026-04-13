@@ -146,15 +146,15 @@ window.Expenditures = function Expenditures() {
 
       {/* Toolbar */}
       <window.FilterBar actions={<button className="btn btn-primary" onClick={openAdd}>+ Add Expenditure</button>}>
-        <input style={{ width:200 }} placeholder="🔍 Search description…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        <input className="students-search" placeholder="🔍 Search description…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         <select value={catFilter} onChange={e => { setCatFilter(e.target.value); setPage(1); }}>
           <option value="">All Categories</option>
           {CATEGORIES.map(c => <option key={c} value={c}>{catLabel[c]}</option>)}
         </select>
-        <select value={month} onChange={e => { setMonth(+e.target.value); setPage(1); }} style={{ width:130 }}>
+        <select className="students-period-month" value={month} onChange={e => { setMonth(+e.target.value); setPage(1); }}>
           {window.MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
         </select>
-        <select value={year} onChange={e => { setYear(+e.target.value); setPage(1); }} style={{ width:90 }}>
+        <select className="students-period-year" value={year} onChange={e => { setYear(+e.target.value); setPage(1); }}>
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <button className="btn btn-secondary btn-sm" onClick={load}>🔄</button>
@@ -163,35 +163,37 @@ window.Expenditures = function Expenditures() {
       <div className="card" style={{ padding:0 }}>
         {loading ? <window.StatePanel type="loading" message="Loading expenditures…" /> : (
           <>
-            <table>
-              <thead>
-                <tr><th>Date</th><th>Category</th><th>Description</th><th style={{ textAlign:'right' }}>Amount</th><th>Stock Link</th><th>Receipt Ref</th><th>Attachment</th><th>Added By</th><th>Actions</th></tr>
-              </thead>
-              <tbody>
-                {paged.length === 0 ? (
-                  <tr><td colSpan={9}><window.StatePanel type="empty" icon="🧾" message="No expenditures found" compact /></td></tr>
-                ) : paged.map(r => (
-                  <tr key={r.id}>
-                    <td>{r.expense_date}</td>
-                    <td><span className="badge badge-blue" style={{ textTransform:'capitalize' }}>{r.category}</span></td>
-                    <td>{r.description}{r.notes && <span style={{ color:'var(--muted)', fontSize:11 }}> — {r.notes}</span>}</td>
-                    <td style={{ textAlign:'right', fontWeight:600, color:'var(--amber)' }}>{fmtRM(r.amount)}</td>
-                    <td>{r.stock_item_name ? <span className='badge badge-green'>{r.stock_item_name} ({r.stock_quantity || 0} {r.stock_item_unit || ''})</span> : '—'}</td>
-                    <td style={{ color:'var(--muted)', fontSize:12 }}>{r.receipt_ref || '—'}</td>
-                    <td>{r.attachment_count > 0 ? <span className="badge badge-green">📎 {r.attachment_count}</span> : '—'}</td>
-                    <td>{r.added_by_name || '—'}</td>
-                    <td>
-                      <div style={{ display:'flex', gap:6 }}>
-                        <button className="btn btn-secondary btn-sm" onClick={() => openEdit(r)}>✏️</button>
-                        <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r)}>🗑</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr><th>Date</th><th>Category</th><th>Description</th><th style={{ textAlign:'right' }}>Amount</th><th>Stock Link</th><th>Receipt Ref</th><th>Attachment</th><th>Added By</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                  {paged.length === 0 ? (
+                    <tr><td colSpan={9}><window.StatePanel type="empty" icon="🧾" message="No expenditures found" compact /></td></tr>
+                  ) : paged.map(r => (
+                    <tr key={r.id}>
+                      <td>{r.expense_date}</td>
+                      <td><span className="badge badge-blue" style={{ textTransform:'capitalize' }}>{r.category}</span></td>
+                      <td>{r.description}{r.notes && <span style={{ color:'var(--muted)', fontSize:11 }}> — {r.notes}</span>}</td>
+                      <td style={{ textAlign:'right', fontWeight:600, color:'var(--amber)' }}>{fmtRM(r.amount)}</td>
+                      <td>{r.stock_item_name ? <span className='badge badge-green'>{r.stock_item_name} ({r.stock_quantity || 0} {r.stock_item_unit || ''})</span> : '—'}</td>
+                      <td style={{ color:'var(--muted)', fontSize:12 }}>{r.receipt_ref || '—'}</td>
+                      <td>{r.attachment_count > 0 ? <span className="badge badge-green">📎 {r.attachment_count}</span> : '—'}</td>
+                      <td>{r.added_by_name || '—'}</td>
+                      <td>
+                        <div className="table-row-actions">
+                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(r)}>✏️</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r)}>🗑</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div style={{ padding:'12px 16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <span style={{ fontSize:13, fontWeight:700, color:'var(--amber)' }}>Total: {fmtRM(filtered.reduce((s,r)=>s+r.amount,0))}</span>
+              <span className="filters-total" style={{ color:'var(--amber)' }}>Total: {fmtRM(filtered.reduce((s,r)=>s+r.amount,0))}</span>
               <window.Pagination page={page} total={filtered.length} perPage={PER} onChange={setPage} />
             </div>
           </>

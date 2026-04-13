@@ -997,6 +997,16 @@
       flex: 0 1 auto;
       min-width: 0;
     }
+    .filters-spacer {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .filters-total {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--green);
+      white-space: nowrap;
+    }
     .inline-stats {
       display: flex;
       align-items: stretch;
@@ -1037,6 +1047,17 @@
       flex: 0 1 auto;
     }
     .contacts-modal-head { justify-content: space-between; align-items: center; }
+    .table-row-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .split-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
 
     .card table,
     .table-card table { min-width: 680px; }
@@ -1338,6 +1359,7 @@
       .filters-actions > * { flex: 1 1 auto; }
       .filters select, .filters input, .filters .btn, .filters label { width: 100%; min-width: 0; }
       .filters label { display: block; }
+      .filters-total { width: 100%; text-align: left; }
       .notification-panel {
         position: fixed;
         inset: auto 12px 12px 12px;
@@ -1379,6 +1401,8 @@
       .summary-strip { grid-template-columns: 1fr 1fr; }
       .modal-actions, .form-actions { flex-direction: column; }
       .modal-actions .btn, .form-actions .btn { width: 100%; justify-content: center; }
+      .table-row-actions > * { flex: 1 1 100%; }
+      .split-grid-2 { grid-template-columns: 1fr; }
       .login-wrap { padding: 14px; }
       .login-showcase { padding: 22px 20px; border-radius: 24px; }
       .login-feature-grid { grid-template-columns: 1fr; }
