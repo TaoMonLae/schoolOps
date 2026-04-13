@@ -140,17 +140,17 @@ window.Fees = function Fees({ user }) {
   return (
     <div>
       <div className="filters">
-        <input style={{ width:220 }} placeholder="🔍 Search student or level…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
-        <select value={month} onChange={e => { setMonth(+e.target.value); setPage(1); }} style={{ width:130 }}>
+        <input className="students-search" placeholder="🔍 Search student or level…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        <select className="students-period-month" value={month} onChange={e => { setMonth(+e.target.value); setPage(1); }}>
           {window.MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
         </select>
-        <select value={year} onChange={e => { setYear(+e.target.value); setPage(1); }} style={{ width:90 }}>
+        <select className="students-period-year" value={year} onChange={e => { setYear(+e.target.value); setPage(1); }}>
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <button className="btn btn-secondary btn-sm" onClick={load}>🔄</button>
         <button className="btn btn-secondary btn-sm" onClick={exportUnpaid}>⬇️ Export Unpaid</button>
-        <div style={{ flex:1 }} />
-        <div style={{ fontSize:14, fontWeight:700, color:'var(--green)' }}>Total: {fmtRM(total)}</div>
+        <div className="filters-spacer" />
+        <div className="filters-total">Total: {fmtRM(total)}</div>
         <button className="btn btn-primary" onClick={() => { setForm(EMPTY_FORM); setModal(true); }}>+ Record Payment</button>
       </div>
 
@@ -173,60 +173,66 @@ window.Fees = function Fees({ user }) {
 
       <div className="card" style={{ padding:0, marginBottom:16 }}>
         {loading ? <div className="empty"><div className="icon">⏳</div>Loading…</div> : (
-          <table>
-            <thead><tr><th>Student</th><th>Level</th><th>Fee</th><th>Status</th><th>Overdue Months</th><th>Outstanding</th><th>Last Paid</th><th></th></tr></thead>
-            <tbody>
-              {filteredStudents.length === 0 ? (
-                <tr><td colSpan={8}><div className="empty"><div className="icon">💰</div>No students found</div></td></tr>
-              ) : filteredStudents.map(s => (
-                <tr key={s.id}>
-                  <td><strong>{s.name}</strong></td>
-                  <td>{s.level}</td>
-                  <td>{fmtRM(s.fee_amount)}</td>
-                  <td>
-                    <window.StatusBadge status={s.current_month_status} />
-                    {s.overdue_months > 0 && <span style={{ marginLeft:6 }}><window.StatusBadge status={s.arrears_status} /></span>}
-                  </td>
-                  <td>{s.overdue_months}</td>
-                  <td style={{ color: s.outstanding_amount > 0 ? 'var(--red)' : 'var(--mid)', fontWeight:600 }}>{fmtRM(s.outstanding_amount)}</td>
-                  <td>{s.last_paid_month ? `${window.MONTHS[s.last_paid_month-1]} ${s.last_paid_year}` : '—'}</td>
-                  <td>
-                    <button className="btn btn-secondary btn-sm" onClick={() => downloadFeeSlip(s.id, s.name)}>
-                      🖨️ Print Unpaid Slip
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-scroll">
+            <table>
+              <thead><tr><th>Student</th><th>Level</th><th>Fee</th><th>Status</th><th>Overdue Months</th><th>Outstanding</th><th>Last Paid</th><th></th></tr></thead>
+              <tbody>
+                {filteredStudents.length === 0 ? (
+                  <tr><td colSpan={8}><div className="empty"><div className="icon">💰</div>No students found</div></td></tr>
+                ) : filteredStudents.map(s => (
+                  <tr key={s.id}>
+                    <td><strong>{s.name}</strong></td>
+                    <td>{s.level}</td>
+                    <td>{fmtRM(s.fee_amount)}</td>
+                    <td>
+                      <window.StatusBadge status={s.current_month_status} />
+                      {s.overdue_months > 0 && <span style={{ marginLeft:6 }}><window.StatusBadge status={s.arrears_status} /></span>}
+                    </td>
+                    <td>{s.overdue_months}</td>
+                    <td style={{ color: s.outstanding_amount > 0 ? 'var(--red)' : 'var(--mid)', fontWeight:600 }}>{fmtRM(s.outstanding_amount)}</td>
+                    <td>{s.last_paid_month ? `${window.MONTHS[s.last_paid_month-1]} ${s.last_paid_year}` : '—'}</td>
+                    <td>
+                      <button className="btn btn-secondary btn-sm" onClick={() => downloadFeeSlip(s.id, s.name)}>
+                        🖨️ Print Unpaid Slip
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       <div className="card" style={{ padding:0 }}>
         {loading ? <div className="empty"><div className="icon">⏳</div>Loading…</div> : (
           <>
-            <table>
-              <thead><tr><th>Student</th><th>Amount</th><th>Period</th><th>Paid Date</th><th>Method</th><th>Received By</th><th>Notes</th><th></th></tr></thead>
-              <tbody>
-                {paged.length === 0 ? (
-                  <tr><td colSpan={8}><div className="empty"><div className="icon">💳</div>No payments found</div></td></tr>
-                ) : paged.map(p => (
-                  <tr key={p.id}>
-                    <td><strong>{p.student_name}</strong></td>
-                    <td style={{ fontWeight:600, color:'var(--green)' }}>{fmtRM(p.amount)}</td>
-                    <td>{window.MONTHS[p.period_month-1]} {p.period_year}</td>
-                    <td>{p.paid_date}</td>
-                    <td><window.StatusBadge status={p.method} /></td>
-                    <td>{p.received_by_name || '—'}</td>
-                    <td style={{ color:'var(--muted)', fontSize:12 }}>{p.notes || ''}</td>
-                    <td style={{ display:'flex', gap:6 }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => openPayment(p.id)}>Open</button>
-                      {user.role === 'admin' && <button className="btn btn-danger btn-sm" onClick={() => handleVoid(p)}>Void</button>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="table-scroll">
+              <table>
+                <thead><tr><th>Student</th><th>Amount</th><th>Period</th><th>Paid Date</th><th>Method</th><th>Received By</th><th>Notes</th><th></th></tr></thead>
+                <tbody>
+                  {paged.length === 0 ? (
+                    <tr><td colSpan={8}><div className="empty"><div className="icon">💳</div>No payments found</div></td></tr>
+                  ) : paged.map(p => (
+                    <tr key={p.id}>
+                      <td><strong>{p.student_name}</strong></td>
+                      <td style={{ fontWeight:600, color:'var(--green)' }}>{fmtRM(p.amount)}</td>
+                      <td>{window.MONTHS[p.period_month-1]} {p.period_year}</td>
+                      <td>{p.paid_date}</td>
+                      <td><window.StatusBadge status={p.method} /></td>
+                      <td>{p.received_by_name || '—'}</td>
+                      <td style={{ color:'var(--muted)', fontSize:12 }}>{p.notes || ''}</td>
+                      <td>
+                        <div className="table-row-actions">
+                          <button className="btn btn-secondary btn-sm" onClick={() => openPayment(p.id)}>Open</button>
+                          {user.role === 'admin' && <button className="btn btn-danger btn-sm" onClick={() => handleVoid(p)}>Void</button>}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div style={{ padding:'12px 16px' }}>
               <window.Pagination page={page} total={filtered.length} perPage={PER} onChange={setPage} />
             </div>
