@@ -14,6 +14,9 @@ window.Fees = function Fees({ user }) {
   const [paymentModal, setPaymentModal] = React.useState(false);
   const [activePayment, setActivePayment] = React.useState(null);
   const [loadingPayment, setLoadingPayment] = React.useState(false);
+  const [verifyCode, setVerifyCode] = React.useState('');
+  const [verifyResult, setVerifyResult] = React.useState(null);
+  const [verifying, setVerifying] = React.useState(false);
   const PER = 20;
 
   const EMPTY_FORM = { student_id:'', amount:'', paid_date: window.todayLocalISO(), method:'cash', period_month: now.getMonth()+1, period_year: now.getFullYear(), notes:'' };
@@ -146,6 +149,25 @@ window.Fees = function Fees({ user }) {
     }
   };
 
+  const verifyReceipt = async () => {
+    const code = verifyCode.trim().toUpperCase();
+    if (!code) {
+      showToast('Enter a verification code first', 'error');
+      return;
+    }
+    setVerifying(true);
+    try {
+      const result = await api(`/api/fees/verify/${encodeURIComponent(code)}`);
+      setVerifyResult(result);
+      showToast('Verification complete');
+    } catch (e) {
+      setVerifyResult(null);
+      showToast(e.message, 'error');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const total = rows.reduce((s, r) => s + r.amount, 0);
 
   return (
@@ -251,6 +273,35 @@ window.Fees = function Fees({ user }) {
         )}
       </div>
 
+      <div className="card" style={{ marginTop:16 }}>
+        <div className="card-head"><h3>Receipt Verification</h3></div>
+        <div className="form-grid">
+          <div className="form-group span2">
+            <label>Verification Code</label>
+            <input
+              value={verifyCode}
+              onChange={(e) => setVerifyCode(e.target.value)}
+              placeholder="e.g. VER-000123-202601"
+            />
+          </div>
+          <div className="form-group" style={{ display:'flex', alignItems:'end' }}>
+            <button className="btn btn-secondary" onClick={verifyReceipt} disabled={verifying}>
+              {verifying ? 'Verifying…' : 'Verify Code'}
+            </button>
+          </div>
+        </div>
+        {verifyResult && (
+          <div style={{ marginTop:12, padding:'12px 14px', border:'1px solid var(--border)', borderRadius:8, background:'var(--bg)' }}>
+            <div style={{ marginBottom:6 }}><strong>Status:</strong> {verifyResult.valid ? 'Valid' : 'Invalid'}</div>
+            <div><strong>Student:</strong> {verifyResult.student_name}</div>
+            <div><strong>Receipt:</strong> {verifyResult.receipt_code}</div>
+            <div><strong>Amount:</strong> {fmtRM(verifyResult.amount)}</div>
+            <div><strong>Paid Date:</strong> {verifyResult.paid_date}</div>
+            <div><strong>Period:</strong> {window.MONTHS[verifyResult.period_month-1]} {verifyResult.period_year}</div>
+          </div>
+        )}
+      </div>
+
       {modal && (
         <window.Modal title="Record Fee Payment" onClose={() => setModal(false)}>
           <form onSubmit={handleSave}>
@@ -317,6 +368,7 @@ window.Fees = function Fees({ user }) {
                 <div className="form-group"><label>Period</label><input value={`${window.MONTHS[activePayment.period_month-1]} ${activePayment.period_year}`} readOnly /></div>
                 <div className="form-group"><label>Received By</label><input value={activePayment.received_by_name || '—'} readOnly /></div>
                 <div className="form-group span2"><label>Receipt No.</label><input value={activePayment.receipt_code} readOnly /></div>
+                <div className="form-group span2"><label>Verification Code</label><input value={activePayment.verification_code || '—'} readOnly /></div>
                 <div className="form-group span2"><label>Notes</label><input value={activePayment.notes || '—'} readOnly /></div>
               </div>
               <div className="modal-actions">
