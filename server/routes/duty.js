@@ -165,6 +165,8 @@ router.post('/', requireAuth, (req, res) => {
   const { duty_number, date, items, notes } = req.body;
   if (!duty_number || !date || !Array.isArray(items) || !items.length)
     return res.status(400).json({ error: 'duty_number, date, and at least one item required' });
+  if (notes && notes.length > 1000)
+    return res.status(400).json({ error: 'Notes must be 1000 characters or fewer' });
 
   const insertLog = db.transaction(() => {
     const result = db.prepare(`

@@ -82,6 +82,8 @@ router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   const parsedAmount = Number(amount);
   if (!Number.isFinite(parsedAmount) || parsedAmount <= 0)
     return res.status(400).json({ error: 'Amount must be a positive number' });
+  if (notes && notes.length > 500)
+    return res.status(400).json({ error: 'Notes must be 500 characters or fewer' });
 
   const parsedMonth = Number(period_month);
   const parsedYear = Number(period_year);
