@@ -1,5 +1,10 @@
 window.Attendance = function Attendance({ user }) {
   const { showToast } = React.useContext(window.ToastContext);
+  const toLocalDateTimeInputValue = (dateValue = new Date()) => {
+    const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
   const today = new Date().toISOString().slice(0, 10);
   const isManager = user?.role === 'admin' || user?.role === 'teacher';
 
@@ -168,7 +173,7 @@ window.Attendance = function Attendance({ user }) {
       const result = await api(`/api/attendance/movements/${movement.id}/clock-in`, {
         method: 'POST',
         body: {
-          return_time: new Date().toISOString().slice(0, 16),
+          return_time: toLocalDateTimeInputValue(),
         },
       });
       const suffix = result.compliance_status === 'returned_late' ? ' (late return)' : '';

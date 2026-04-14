@@ -1,9 +1,11 @@
 window.StudentMovement = function StudentMovement({ user }) {
   const { showToast } = React.useContext(window.ToastContext);
+  const toLocalDateTimeInputValue = (date = new Date()) => {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
   const now = new Date();
-  const defaultLeaveTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0, 0)
-    .toISOString()
-    .slice(0, 16);
+  const defaultLeaveTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 15, 0, 0);
 
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -12,7 +14,7 @@ window.StudentMovement = function StudentMovement({ user }) {
   const [activeMovement, setActiveMovement] = React.useState(null);
   const [history, setHistory] = React.useState([]);
   const [form, setForm] = React.useState({
-    leave_time: defaultLeaveTime,
+    leave_time: toLocalDateTimeInputValue(defaultLeaveTime),
     destination: '',
     reason: '',
   });
@@ -57,7 +59,7 @@ window.StudentMovement = function StudentMovement({ user }) {
     try {
       const result = await api(`/api/attendance/movements/self/${activeMovement.id}/clock-in`, {
         method: 'POST',
-        body: { return_time: new Date().toISOString().slice(0, 16) },
+        body: { return_time: toLocalDateTimeInputValue() },
       });
       showToast(result.compliance_status === 'returned_late' ? 'Clock-in recorded. You returned late.' : 'Clock-in recorded');
       load();
@@ -164,7 +166,7 @@ window.StudentMovement = function StudentMovement({ user }) {
 
           <div className="card" style={{ maxWidth: '100%' }}>
             <div className="card-title">My Movement History</div>
-            <div className="table-scroll">
+            <div className="table-scroll table-scroll-compact">
             <table>
               <thead>
                 <tr>
