@@ -201,22 +201,38 @@ router.delete('/:id', requireAuth, requireRole('admin'), (req, res) => {
   const existing = db.prepare('SELECT * FROM expenditures WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Expenditure not found' });
 
+  // Collect file paths BEFORE any deletion (read-only phase)
   const attachments = db.prepare(`
     SELECT id, stored_name FROM attachments
     WHERE entity_type = 'expenditure' AND entity_id = ?
   `).all(req.params.id);
 
-  for (const att of attachments) {
-    const filePath = resolveStoragePath('expenditure', att.stored_name);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-  }
+  const filePaths = attachments.map(att => ({
+    id: att.id,
+    path: resolveStoragePath('expenditure', att.stored_name),
+  }));
+
+  // DB deletion in a single atomic transaction
   const tx = db.transaction(() => {
-    db.prepare(`DELETE FROM attachments WHERE entity_type = 'expenditure' AND entity_id = ?`).run(req.params.id);
-    if (existing.stock_movement_id) deleteStockMovementById(existing.stock_movement_id);
+    db.prepare(`DELETE FROM attachments WHERE entity_type = 'expenditure' AND entity_id = ?`)
+      .run(req.params.id);
+    if (existing.stock_movement_id) {
+      deleteStockMovementById(existing.stock_movement_id);
+    }
     db.prepare('DELETE FROM expenditures WHERE id = ?').run(req.params.id);
   });
 
-  tx();
+  tx(); // throws on failure — response not yet sent, so caller gets 500
+
+  // File deletion AFTER successful DB commit (best-effort)
+  for (const { path: filePath } of filePaths) {
+    try {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (fileErr) {
+      console.error(`Warning: could not delete attachment file ${filePath}:`, fileErr.message);
+    }
+  }
+
   audit(req.user.id, 'DELETE', 'expenditures', req.params.id, `Deleted expenditure ${req.params.id}`);
   res.json({ ok: true });
 });
