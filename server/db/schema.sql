@@ -13,6 +13,10 @@ CREATE TABLE IF NOT EXISTS users (
   is_active    INTEGER NOT NULL DEFAULT 1,
   login_disabled INTEGER NOT NULL DEFAULT 0,
   must_change_password INTEGER NOT NULL DEFAULT 0,
+  is_retired   INTEGER NOT NULL DEFAULT 0,
+  retired_at   TEXT,
+  retired_by   INTEGER REFERENCES users(id),
+  retired_reason TEXT,
   created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 

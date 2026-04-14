@@ -134,6 +134,18 @@ function runMigrations() {
   if (!columnExists('users', 'must_change_password')) {
     db.exec('ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0');
   }
+  if (!columnExists('users', 'is_retired')) {
+    db.exec('ALTER TABLE users ADD COLUMN is_retired INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!columnExists('users', 'retired_at')) {
+    db.exec('ALTER TABLE users ADD COLUMN retired_at TEXT');
+  }
+  if (!columnExists('users', 'retired_by')) {
+    db.exec('ALTER TABLE users ADD COLUMN retired_by INTEGER REFERENCES users(id)');
+  }
+  if (!columnExists('users', 'retired_reason')) {
+    db.exec('ALTER TABLE users ADD COLUMN retired_reason TEXT');
+  }
 
   if (!tableExists('stock_categories')) {
     db.exec(`
