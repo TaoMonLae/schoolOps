@@ -189,7 +189,8 @@ function AuthProvider({ children }) {
   }, [refreshUser, refreshSettings]);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', settings.theme || 'classic');
+    const activeTheme = settings.theme === 'dark_mode' ? 'night_study' : (settings.theme || 'classic');
+    document.documentElement.setAttribute('data-theme', activeTheme);
   }, [settings.theme]);
 
   const login = useCallback(async (username, password) => {

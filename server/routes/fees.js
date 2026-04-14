@@ -4,7 +4,7 @@ const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { getSettings } = require('../services/settings');
 const { generateUnpaidFeeReminderBatch } = require('../services/notifications');
-const { drawPdfLogo } = require('../services/pdfBranding');
+const { drawPdfLogo, getPdfThemeTokens } = require('../services/pdfBranding');
 const { assertPeriodOpen } = require('../services/financeControls');
 
 const router = express.Router();
@@ -146,6 +146,7 @@ router.get('/:id(\\d+)/receipt/pdf', requireAuth, requireRole('admin', 'teacher'
   const receiptCode = paymentReceiptCode(payment);
   const verificationCode = `VER-${String(payment.id).padStart(6, '0')}-${payment.period_year}${String(payment.period_month).padStart(2, '0')}`;
   const duplicateCopy = (req.query.copy || '').toString().toLowerCase() === 'duplicate';
+  const palette = getPdfThemeTokens(settings.theme);
 
   const filename = `Receipt_${receiptCode}.pdf`;
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -160,48 +161,53 @@ router.get('/:id(\\d+)/receipt/pdf', requireAuth, requireRole('admin', 'teacher'
   const paidDate = payment.paid_date;
   const periodLabel = `${MONTHS[payment.period_month - 1]} ${payment.period_year}`;
 
-  doc.rect(0, 0, doc.page.width, 85).fill('#1a7a4a');
-  const titleX = drawPdfLogo(doc, settings.logo_url, { x: 50, y: 18, size: 46 }) || 50;
-  doc.fillColor('white').font('Helvetica-Bold').fontSize(18).text(schoolName, titleX, 22);
+  doc.rect(0, 0, doc.page.width, doc.page.height).fill(palette.pageBg);
+  doc.rect(0, 0, doc.page.width, 88).fill(palette.header);
+  const titleX = drawPdfLogo(doc, settings.logo_url, { x: 50, y: 18, size: 46, background: palette.pageBg }) || 50;
+  doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(18).text(schoolName, titleX, 22);
   doc.font('Helvetica').fontSize(11).text(subtitle || 'Payment Receipt', titleX, 48);
   doc.font('Helvetica-Bold').fontSize(13).text('OFFICIAL FEE PAYMENT RECEIPT', titleX, 65);
 
-  doc.fillColor('#1f2937');
-  let y = 105;
+  doc.fillColor(palette.text);
+  let y = 108;
+  doc.save();
+  doc.roundedRect(50, 95, doc.page.width - 100, 4, 2).fill(palette.accent);
+  doc.restore();
+
 
   if (duplicateCopy) {
     doc.save();
     doc.rotate(-30, { origin: [doc.page.width / 2, doc.page.height / 2] });
-    doc.fillColor('#ef4444').opacity(0.18).font('Helvetica-Bold').fontSize(72)
+    doc.fillColor(palette.watermark).opacity(0.16).font('Helvetica-Bold').fontSize(72)
       .text('DUPLICATE COPY', 65, 360, { align: 'center', width: doc.page.width - 130 });
     doc.restore();
-    doc.fillColor('#1f2937').opacity(1);
+    doc.fillColor(palette.text).opacity(1);
   }
 
-  doc.roundedRect(50, y, doc.page.width - 100, 120, 8).fillAndStroke('#f8fafc', '#d1d5db');
-  doc.fillColor('#111827').font('Helvetica-Bold').fontSize(11).text('Receipt Information', 64, y + 14);
+  doc.roundedRect(50, y, doc.page.width - 100, 120, 8).fillAndStroke(palette.cardBg, palette.cardBorder);
+  doc.fillColor(palette.text).font('Helvetica-Bold').fontSize(11).text('Receipt Information', 64, y + 14);
   doc.font('Helvetica').fontSize(10)
     .text(`Receipt No: ${receiptCode}`, 64, y + 38)
     .text(`Verification Code: ${verificationCode}`, 64, y + 56)
     .text(`Payment Date: ${paidDate}`, 64, y + 74)
     .text(`Payment Period: ${periodLabel}`, 64, y + 92);
   doc.font('Helvetica').fontSize(10)
-    .text(`Method: ${payment.method}`, 320, y + 38)
+    .text(`Method: ${String(payment.method || 'cash').replace('_', ' ').toUpperCase()}`, 320, y + 38)
     .text(`Received By: ${payment.received_by_name || 'N/A'}`, 320, y + 56)
     .text(`Amount Paid: ${formatMoney(currency, payment.amount)}`, 320, y + 74);
 
   y += 145;
-  doc.roundedRect(50, y, doc.page.width - 100, 145, 8).fillAndStroke('#ffffff', '#d1d5db');
-  doc.fillColor('#111827').font('Helvetica-Bold').fontSize(11).text('Payer Details', 64, y + 14);
+  doc.roundedRect(50, y, doc.page.width - 100, 145, 8).fillAndStroke(palette.cardBg, palette.cardBorder);
+  doc.fillColor(palette.text).font('Helvetica-Bold').fontSize(11).text('Payer Details', 64, y + 14);
   doc.font('Helvetica').fontSize(10)
     .text(`Student: ${payment.student_name}`, 64, y + 40)
     .text(`Coverage Month/Year: ${periodLabel}`, 64, y + 58)
     .text(`Notes: ${payment.notes || '—'}`, 64, y + 76, { width: doc.page.width - 130 });
 
   y += 170;
-  doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor('#d1d5db').stroke();
+  doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor(palette.cardBorder).stroke();
   y += 12;
-  doc.fillColor('#4b5563').font('Helvetica').fontSize(9)
+  doc.fillColor(palette.muted).font('Helvetica').fontSize(9)
     .text(contactBlock || 'Contact information is configured in Settings.', 50, y, { width: doc.page.width - 100, align: 'left' });
   y += 30;
   doc.text(settings.report_footer_text || 'Generated by SchoolOps', 50, y, { width: doc.page.width - 100, align: 'center' });

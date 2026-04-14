@@ -185,7 +185,7 @@ window.Settings = function Settings({ mode = 'settings', onSaved }) {
               <label>Theme</label>
               <select value={form.theme} onChange={(e) => setForm(f => ({ ...f, theme: e.target.value }))}>
                 <option value="classic">Classic School (Binance)</option>
-                <option value="night_study">Night Study</option>
+                <option value="dark_mode">Dark Mode</option>
                 <option value="figma_studio">Figma Studio</option>
                 <option value="vercel_clean">Vercel Clean</option>
                 <option value="composio_dark">Composio Dark</option>
