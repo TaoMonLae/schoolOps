@@ -16,7 +16,7 @@ window.Fees = function Fees({ user }) {
   const [loadingPayment, setLoadingPayment] = React.useState(false);
   const PER = 20;
 
-  const EMPTY_FORM = { student_id:'', amount:'', paid_date: new Date().toISOString().slice(0,10), method:'cash', period_month: now.getMonth()+1, period_year: now.getFullYear(), notes:'' };
+  const EMPTY_FORM = { student_id:'', amount:'', paid_date: window.todayLocalISO(), method:'cash', period_month: now.getMonth()+1, period_year: now.getFullYear(), notes:'' };
   const [form, setForm] = React.useState(EMPTY_FORM);
 
   const years = [];
@@ -74,14 +74,25 @@ window.Fees = function Fees({ user }) {
       setModal(false);
       setForm(EMPTY_FORM);
       load();
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) {
+      if (err.message.includes('already exists')) {
+        showToast('A payment already exists for this student in the selected month/year.', 'error');
+      } else {
+        showToast(err.message, 'error');
+      }
+    }
     finally { setSaving(false); }
   };
 
   const handleVoid = async (p) => {
     if (!confirm2(`Void payment of ${fmtRM(p.amount)} for ${p.student_name}?`)) return;
+    const void_reason = window.prompt('Void reason (required for audit trail):');
+    if (!void_reason || !void_reason.trim()) {
+      showToast('Void reason is required', 'error');
+      return;
+    }
     try {
-      await api(`/api/fees/${p.id}`, { method: 'DELETE' });
+      await api(`/api/fees/${p.id}`, { method: 'DELETE', body: { void_reason: void_reason.trim() } });
       showToast('Payment voided');
       load();
     } catch (e) { showToast(e.message, 'error'); }
@@ -148,7 +159,7 @@ window.Fees = function Fees({ user }) {
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
         <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
-        <button className="btn btn-secondary btn-sm" onClick={exportUnpaid}>Exportxport Unpaid</button>
+        <button className="btn btn-secondary btn-sm" onClick={exportUnpaid}>Export Unpaid</button>
         <div className="filters-spacer" />
         <div className="filters-total">Total: {fmtRM(total)}</div>
         <button className="btn btn-primary" onClick={() => { setForm(EMPTY_FORM); setModal(true); }}>+ Record Payment</button>

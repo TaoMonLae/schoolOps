@@ -4,6 +4,7 @@ const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { getSettings } = require('../services/settings');
 const { drawPdfLogo } = require('../services/pdfBranding');
+const { assertDatePeriodOpen, assertPeriodOpen } = require('../services/financeControls');
 
 const router = express.Router();
 
@@ -177,11 +178,14 @@ router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   if (!da || !ca) return res.status(400).json({ error: 'Invalid account(s)' });
 
   // Check if month is closed
-  const ym = entry_date.slice(0, 7);
-  const [yr, mo] = ym.split('-').map(Number);
-  const closed = db.prepare('SELECT id FROM monthly_closings WHERE year = ? AND month = ?').get(yr, mo);
-  if (closed && req.user.role !== 'admin')
-    return res.status(409).json({ error: `Period ${MONTHS[mo-1]} ${yr} is closed. Contact admin.` });
+  const closedError = assertDatePeriodOpen(entry_date, 'posting cashbook entries');
+  if (closedError) return res.status(409).json({ error: closedError });
+  if ((payment_method === 'bank' || payment_method === 'transfer') && !payment_ref) {
+    return res.status(400).json({ error: 'payment_ref is required for bank and transfer payments' });
+  }
+  if ((payment_method === 'bank' || payment_method === 'transfer') && !bank_account_name) {
+    return res.status(400).json({ error: 'bank_account_name is required for bank and transfer payments' });
+  }
 
   let result;
   let ref;
@@ -217,13 +221,20 @@ router.delete('/:id(\\d+)', requireAuth, requireRole('admin'), (req, res) => {
   const entry = db.prepare('SELECT * FROM cashbook_entries WHERE id = ?').get(req.params.id);
   if (!entry) return res.status(404).json({ error: 'Entry not found' });
   if (entry.voided) return res.status(400).json({ error: 'Already voided' });
-
   const { void_reason } = req.body;
-  db.prepare('UPDATE cashbook_entries SET voided = 1, void_reason = ? WHERE id = ?')
-    .run(void_reason || null, req.params.id);
+  if (!void_reason || !String(void_reason).trim()) return res.status(400).json({ error: 'Void reason is required' });
+  const period = entry.entry_date.slice(0, 7).split('-').map(Number);
+  const closedError = assertPeriodOpen({ year: period[0], month: period[1], action: 'voiding cashbook entries' });
+  if (closedError) return res.status(409).json({ error: closedError });
+
+  db.prepare(`
+    UPDATE cashbook_entries
+    SET voided = 1, void_reason = ?, voided_by = ?, voided_at = datetime('now')
+    WHERE id = ?
+  `).run(String(void_reason).trim(), req.user.id, req.params.id);
 
   audit(req.user.id, 'VOID', 'cashbook_entries', req.params.id,
-    `Voided ${entry.ref_number}: ${void_reason || 'no reason'}`);
+    `Voided ${entry.ref_number}: ${String(void_reason).trim()}`);
   res.json({ ok: true });
 });
 

@@ -123,7 +123,10 @@ CREATE TABLE IF NOT EXISTS fee_payments (
   period_year   INTEGER NOT NULL,
   received_by   INTEGER REFERENCES users(id),
   notes         TEXT,
-  voided        INTEGER NOT NULL DEFAULT 0
+  voided        INTEGER NOT NULL DEFAULT 0,
+  void_reason   TEXT,
+  voided_by     INTEGER REFERENCES users(id),
+  voided_at     TEXT
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fee_payments_unique_active_period
@@ -175,7 +178,12 @@ CREATE TABLE IF NOT EXISTS expenditures (
   notes        TEXT,
   stock_item_id INTEGER REFERENCES inventory_items(id),
   stock_quantity REAL,
-  stock_movement_id INTEGER REFERENCES stock_movements(id)
+  stock_movement_id INTEGER REFERENCES stock_movements(id),
+  stock_reversal_movement_id INTEGER REFERENCES stock_movements(id),
+  voided       INTEGER NOT NULL DEFAULT 0,
+  void_reason  TEXT,
+  voided_by    INTEGER REFERENCES users(id),
+  voided_at    TEXT
 );
 
 -- ─────────────────────────────────────────

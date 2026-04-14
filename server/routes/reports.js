@@ -119,10 +119,12 @@ function getMonthlyData(month, year) {
       WHERE entity_type = 'expenditure'
       GROUP BY entity_id
     ) att ON att.entity_id = e.id
-    WHERE strftime('%m', e.expense_date) = ?
+    WHERE e.voided = 0
+      AND strftime('%m', e.expense_date) = ?
       AND strftime('%Y', e.expense_date) = ?
     ORDER BY e.expense_date
   `).all(m, y);
+  const financeControls = getFinanceControls(month, year);
 
   const byCategory = {};
   for (const e of expenditures) {
@@ -145,8 +147,52 @@ function getMonthlyData(month, year) {
     expTotal, byCategory, expenditures,
     totalExpenses,
     netBalance: feeIncome - totalExpenses,
+    financeControls,
     branding,
   };
+}
+
+function getFinanceControls(month, year) {
+  const m = String(month).padStart(2, '0');
+  const y = String(year);
+  const periodFilter = `${y}-${m}`;
+
+  const voidedFees = db.prepare(`
+    SELECT fp.id, fp.paid_date AS event_date, s.name AS reference_name, fp.amount, fp.void_reason, fp.voided_at,
+           u.name AS actor_name
+    FROM fee_payments fp
+    JOIN students s ON s.id = fp.student_id
+    LEFT JOIN users u ON u.id = fp.voided_by
+    WHERE fp.voided = 1 AND fp.period_month = ? AND fp.period_year = ?
+    ORDER BY fp.voided_at DESC, fp.id DESC
+  `).all(month, year);
+
+  const voidedCashbook = db.prepare(`
+    SELECT ce.id, ce.entry_date AS event_date, ce.ref_number, ce.description, ce.amount, ce.void_reason, ce.voided_at, u.name AS actor_name
+    FROM cashbook_entries ce
+    LEFT JOIN users u ON u.id = ce.voided_by
+    WHERE ce.voided = 1 AND strftime('%Y-%m', ce.entry_date) = ?
+    ORDER BY ce.voided_at DESC, ce.id DESC
+  `).all(periodFilter);
+
+  const voidedExpenditures = db.prepare(`
+    SELECT e.id, e.expense_date AS event_date, e.category, e.description, e.amount, e.void_reason, e.voided_at, u.name AS actor_name
+    FROM expenditures e
+    LEFT JOIN users u ON u.id = e.voided_by
+    WHERE e.voided = 1 AND strftime('%Y-%m', e.expense_date) = ?
+    ORDER BY e.voided_at DESC, e.id DESC
+  `).all(periodFilter);
+
+  const closingEvents = db.prepare(`
+    SELECT mc.id, mc.year, mc.month, mc.closed_at, mc.is_reopened, mc.reopened_at, mc.reopen_reason,
+           cu.name AS closed_by_name, ru.name AS reopened_by_name
+    FROM monthly_closings mc
+    LEFT JOIN users cu ON cu.id = mc.closed_by
+    LEFT JOIN users ru ON ru.id = mc.reopened_by
+    WHERE mc.year = ? AND mc.month = ?
+  `).all(year, month);
+
+  return { voidedFees, voidedCashbook, voidedExpenditures, closingEvents };
 }
 
 function getYearlyData(year) {
@@ -276,6 +322,16 @@ function getStudentContactExportRows(search = '') {
 router.get('/monthly', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   const { month, year } = parseMonthYear(req);
   res.json(getMonthlyData(month, year));
+});
+
+router.get('/finance-controls', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
+  const { month, year } = parseMonthYear(req);
+  res.json({
+    month,
+    year,
+    label: `${MONTHS[month - 1]} ${year}`,
+    ...getFinanceControls(month, year),
+  });
 });
 
 // GET /api/reports/yearly?year=

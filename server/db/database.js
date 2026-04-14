@@ -201,6 +201,30 @@ function runMigrations() {
   if (!columnExists('expenditures', 'stock_movement_id')) {
     db.exec('ALTER TABLE expenditures ADD COLUMN stock_movement_id INTEGER REFERENCES stock_movements(id)');
   }
+  if (!columnExists('expenditures', 'stock_reversal_movement_id')) {
+    db.exec('ALTER TABLE expenditures ADD COLUMN stock_reversal_movement_id INTEGER REFERENCES stock_movements(id)');
+  }
+  if (!columnExists('expenditures', 'voided')) {
+    db.exec('ALTER TABLE expenditures ADD COLUMN voided INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!columnExists('expenditures', 'void_reason')) {
+    db.exec('ALTER TABLE expenditures ADD COLUMN void_reason TEXT');
+  }
+  if (!columnExists('expenditures', 'voided_by')) {
+    db.exec('ALTER TABLE expenditures ADD COLUMN voided_by INTEGER REFERENCES users(id)');
+  }
+  if (!columnExists('expenditures', 'voided_at')) {
+    db.exec('ALTER TABLE expenditures ADD COLUMN voided_at TEXT');
+  }
+  if (!columnExists('fee_payments', 'void_reason')) {
+    db.exec('ALTER TABLE fee_payments ADD COLUMN void_reason TEXT');
+  }
+  if (!columnExists('fee_payments', 'voided_by')) {
+    db.exec('ALTER TABLE fee_payments ADD COLUMN voided_by INTEGER REFERENCES users(id)');
+  }
+  if (!columnExists('fee_payments', 'voided_at')) {
+    db.exec('ALTER TABLE fee_payments ADD COLUMN voided_at TEXT');
+  }
 
 
   if (!columnExists('students', 'dorm_house')) {
@@ -386,6 +410,8 @@ function runMigrations() {
         notes           TEXT,
         voided          INTEGER NOT NULL DEFAULT 0,
         void_reason     TEXT,
+        voided_by       INTEGER REFERENCES users(id),
+        voided_at       TEXT,
         created_by      INTEGER REFERENCES users(id),
         created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
       )
@@ -426,9 +452,31 @@ function runMigrations() {
         closing_cash    REAL    NOT NULL DEFAULT 0,
         closing_bank    REAL    NOT NULL DEFAULT 0,
         notes           TEXT,
+        is_reopened     INTEGER NOT NULL DEFAULT 0,
+        reopened_at     TEXT,
+        reopened_by     INTEGER REFERENCES users(id),
+        reopen_reason   TEXT,
         UNIQUE(year, month)
       )
     `);
+  }
+  if (!columnExists('cashbook_entries', 'voided_by')) {
+    db.exec('ALTER TABLE cashbook_entries ADD COLUMN voided_by INTEGER REFERENCES users(id)');
+  }
+  if (!columnExists('cashbook_entries', 'voided_at')) {
+    db.exec('ALTER TABLE cashbook_entries ADD COLUMN voided_at TEXT');
+  }
+  if (!columnExists('monthly_closings', 'is_reopened')) {
+    db.exec('ALTER TABLE monthly_closings ADD COLUMN is_reopened INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!columnExists('monthly_closings', 'reopened_at')) {
+    db.exec('ALTER TABLE monthly_closings ADD COLUMN reopened_at TEXT');
+  }
+  if (!columnExists('monthly_closings', 'reopened_by')) {
+    db.exec('ALTER TABLE monthly_closings ADD COLUMN reopened_by INTEGER REFERENCES users(id)');
+  }
+  if (!columnExists('monthly_closings', 'reopen_reason')) {
+    db.exec('ALTER TABLE monthly_closings ADD COLUMN reopen_reason TEXT');
   }
 
   ensureInventorySeedData();

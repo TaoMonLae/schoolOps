@@ -95,6 +95,11 @@ window.fmtCurrency = (n, currencyOverride) => {
   return `${currency} ${parseFloat(n || 0).toFixed(2)}`;
 };
 window.fmtRM = (n) => window.fmtCurrency(n);
+window.todayLocalISO = () => {
+  const d = new Date();
+  const tzOffsetMs = d.getTimezoneOffset() * 60 * 1000;
+  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+};
 
 // Month names
 window.MONTHS = [
