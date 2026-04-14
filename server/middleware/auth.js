@@ -3,8 +3,11 @@ const { db } = require('../db/database');
 
 const SECRET = process.env.JWT_SECRET;
 
-if (!SECRET) {
-  throw new Error('JWT_SECRET environment variable is required');
+function getSecret() {
+  if (!SECRET) {
+    throw new Error('JWT_SECRET environment variable is required');
+  }
+  return SECRET;
 }
 
 /**
@@ -16,7 +19,7 @@ function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
   try {
-    const payload = jwt.verify(token, SECRET);
+    const payload = jwt.verify(token, getSecret());
     const user = db.prepare(`
       SELECT id, username, name, role, is_active, login_disabled
       FROM users
@@ -56,7 +59,7 @@ function requireRole(...roles) {
 function signToken(user) {
   return jwt.sign(
     { id: user.id, username: user.username, name: user.name, role: user.role },
-    SECRET,
+    getSecret(),
     { expiresIn: '8h' }
   );
 }
