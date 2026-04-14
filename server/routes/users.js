@@ -176,6 +176,9 @@ router.post('/:id/reset-password', requireAuth, requireRole('admin'), (req, res)
     WHERE id = ?
   `).run(hash, mustChange, userId);
 
+  audit(req.user.id, 'ADMIN_PASSWORD_RESET', 'users', user.id,
+    `Admin reset password for user: ${user.username}`);
+
   createNotification({
     userId,
     type: 'password_reset',

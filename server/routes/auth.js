@@ -35,9 +35,11 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   if (!user.is_active) {
+    audit(user.id, 'LOGIN_BLOCKED', 'users', user.id, `Login attempt on deactivated account: ${user.username}`);
     return res.status(403).json({ error: 'Account is deactivated' });
   }
   if (user.login_disabled) {
+    audit(user.id, 'LOGIN_BLOCKED', 'users', user.id, `Login attempt on login-disabled account: ${user.username}`);
     return res.status(403).json({ error: 'Login disabled for this account' });
   }
 
