@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
   <!-- React + ReactDOM CDN -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -225,6 +226,49 @@
       --shadow-lg:    0 24px 56px rgba(0,0,0,.5);
       --shadow-xl:    0 36px 80px rgba(0,0,0,.55);
     }
+
+    :root[data-theme="clay_playful"] {
+      --brand:        #fbbd41;
+      --brand-dark:   #9d6a09;
+      --brand-light:  #fff7db;
+      --brand-mid:    #f8cc65;
+      --brand-soft:   #faf2dd;
+      --accent:       #43089f;
+      --accent-light: #efe8ff;
+
+      --green:        #078a52;
+      --green-dark:   #02492a;
+      --green-light:  #e8fff1;
+
+      --red:          #fc7981;
+      --red-light:    #fff2f3;
+
+      --amber:        #d08a11;
+      --amber-light:  #fff7db;
+
+      --blue:         #0089ad;
+      --blue-light:   #ebf9fd;
+
+      --dark:         #000000;
+      --mid:          #55534e;
+      --muted:        #9f9b93;
+      --border:       #dad4c8;
+      --border-focus: #146ef5;
+      --bg:           #faf9f7;
+      --card:         #ffffff;
+
+      --sidebar-bg:   #02492a;
+      --radius-sm:    12px;
+      --radius-md:    16px;
+      --radius-lg:    24px;
+      --radius-xl:    40px;
+
+      --shadow-xs:    rgba(0,0,0,0.1) 0px 1px 1px, rgba(0,0,0,0.04) 0px -1px 1px inset, rgba(0,0,0,0.05) 0px -0.5px 1px;
+      --shadow-sm:    rgba(0,0,0,0.1) 0px 1px 1px, rgba(0,0,0,0.04) 0px -1px 1px inset, rgba(0,0,0,0.05) 0px -0.5px 1px;
+      --shadow-md:    rgba(0,0,0,0.1) 0px 1px 1px, rgba(0,0,0,0.04) 0px -1px 1px inset, rgba(0,0,0,0.05) 0px -0.5px 1px;
+      --shadow-lg:    rgba(0,0,0,.16) 0 12px 28px;
+      --shadow-xl:    rgba(0,0,0,.2) 0 20px 44px;
+    }
     html, body, #root {
       height: 100%;
       width: 100%;
@@ -244,6 +288,11 @@
     :root[data-theme="night_study"] body,
     :root[data-theme="composio_dark"] body {
       background: var(--bg);
+    }
+
+    :root[data-theme="clay_playful"] body {
+      font-family: 'Roobert', 'Manrope', 'Segoe UI', Arial, system-ui, sans-serif;
+      letter-spacing: -.01em;
     }
 
     a { color: inherit; text-decoration: none; }
@@ -410,9 +459,9 @@
       color: rgba(255,255,255,.9);
     }
     .nav-item.active {
-      background: rgba(240,185,11,.12);
-      color: #F0B90B;
-      border-left-color: #F0B90B;
+      background: var(--brand-light);
+      color: var(--brand);
+      border-left-color: var(--brand);
       font-weight: 600;
     }
     .nav-item .icon {
@@ -1016,6 +1065,84 @@
     .btn-amber:hover { background: var(--brand-dark); }
     .btn-sm { padding: 5px 11px; font-size: 12px; }
     .btn-icon { padding: 7px 9px; }
+
+    :root[data-theme="clay_playful"] .btn {
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;
+    }
+    :root[data-theme="clay_playful"] .btn:hover {
+      transform: rotateZ(-4deg) translateY(-2px);
+      box-shadow: rgb(0,0,0) -5px 5px;
+    }
+    :root[data-theme="clay_playful"] .btn-primary {
+      color: #000;
+      border-color: #d08a11;
+    }
+    :root[data-theme="clay_playful"] .btn-primary:hover {
+      background: #43089f;
+      border-color: #43089f;
+      color: #fff;
+    }
+    :root[data-theme="clay_playful"] .btn-secondary {
+      background: #fff;
+      color: #000;
+      border-style: dashed;
+    }
+    :root[data-theme="clay_playful"] .btn-secondary:hover {
+      background: #3bd3fd;
+      color: #000;
+      border-color: #0089ad;
+    }
+    :root[data-theme="clay_playful"] .sidebar-brand-panel {
+      border-radius: 24px;
+      background: rgba(255,255,255,.08);
+      border: 1px dashed rgba(255,255,255,.35);
+    }
+    :root[data-theme="clay_playful"] .card,
+    :root[data-theme="clay_playful"] .summary-tile,
+    :root[data-theme="clay_playful"] .quick-card,
+    :root[data-theme="clay_playful"] .insight-card,
+    :root[data-theme="clay_playful"] .notification-panel,
+    :root[data-theme="clay_playful"] .notification-item,
+    :root[data-theme="clay_playful"] .hero-card,
+    :root[data-theme="clay_playful"] .modal,
+    :root[data-theme="clay_playful"] .context-chip {
+      border-radius: 24px;
+    }
+    :root[data-theme="clay_playful"] .card,
+    :root[data-theme="clay_playful"] .summary-tile,
+    :root[data-theme="clay_playful"] .quick-card,
+    :root[data-theme="clay_playful"] .insight-card,
+    :root[data-theme="clay_playful"] .notification-item,
+    :root[data-theme="clay_playful"] .hero-card,
+    :root[data-theme="clay_playful"] .modal {
+      border-color: #dad4c8;
+      box-shadow: var(--shadow-sm);
+    }
+    :root[data-theme="clay_playful"] .context-chip {
+      background: #fff;
+      border-style: dashed;
+    }
+    :root[data-theme="clay_playful"] .page-kicker,
+    :root[data-theme="clay_playful"] .hero-eyebrow {
+      border-radius: 999px;
+      font-size: 10px;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    :root[data-theme="clay_playful"] .page-heading h2,
+    :root[data-theme="clay_playful"] .hero-title,
+    :root[data-theme="clay_playful"] .login-logo h1 {
+      font-family: 'Roobert', 'Manrope', 'Segoe UI', Arial, system-ui, sans-serif;
+      letter-spacing: -.04em;
+      font-weight: 700;
+    }
+    :root[data-theme="clay_playful"] code,
+    :root[data-theme="clay_playful"] .topbar-date,
+    :root[data-theme="clay_playful"] .topbar-identity {
+      font-family: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
 
     :root[data-theme="night_study"] .topbar,
     :root[data-theme="composio_dark"] .topbar {

@@ -67,7 +67,7 @@ router.put('/', requireAuth, requireRole('admin'), (req, res) => {
   if (cleaned.currency !== undefined && !cleaned.currency) {
     return res.status(400).json({ error: 'Currency cannot be empty' });
   }
-  const allowedThemes = ['classic', 'night_study', 'figma_studio', 'vercel_clean', 'composio_dark'];
+  const allowedThemes = ['classic', 'night_study', 'figma_studio', 'vercel_clean', 'composio_dark', 'clay_playful'];
   if (cleaned.theme !== undefined && !allowedThemes.includes(cleaned.theme)) {
     return res.status(400).json({ error: `Theme must be one of: ${allowedThemes.join(', ')}` });
   }
