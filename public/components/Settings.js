@@ -189,6 +189,7 @@ window.Settings = function Settings({ mode = 'settings', onSaved }) {
                 <option value="figma_studio">Figma Studio</option>
                 <option value="vercel_clean">Vercel Clean</option>
                 <option value="composio_dark">Composio Dark</option>
+                <option value="clay_playful">Clay Playful</option>
               </select>
             </div>
             <div className="form-group">
@@ -216,8 +217,8 @@ window.Settings = function Settings({ mode = 'settings', onSaved }) {
         <div style={{ marginBottom: 10 }}><strong>Backup directory:</strong> <code>{status?.backup_dir}</code></div>
         <div style={{ marginBottom: 10 }}><strong>Last backup:</strong> {status?.last_backup_at || 'Not tracked yet'}</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="btn btn-secondary" onClick={runDownloadBackup}>Downloadownload DB Backup</button>
-          <button className="btn btn-primary" onClick={runCreateBackup} disabled={runningBackup}>{runningBackup ? 'Creating…' : ' Create Backup Now'}</button>
+          <button className="btn btn-secondary" onClick={runDownloadBackup}>Download DB Backup</button>
+          <button className="btn btn-primary" onClick={runCreateBackup} disabled={runningBackup}>{runningBackup ? 'Creating…' : 'Create Backup Now'}</button>
         </div>
         {backupInfo?.instructions?.length > 0 && (
           <div style={{ marginTop: 14, fontSize: 13, color: 'var(--mid)' }}>
