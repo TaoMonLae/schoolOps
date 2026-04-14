@@ -3,6 +3,8 @@ require('dotenv').config();
 const express      = require('express');
 const cookieParser = require('cookie-parser');
 const path         = require('path');
+const helmet       = require('helmet');
+const rateLimit    = require('express-rate-limit');
 
 const authRoutes        = require('./routes/auth');
 const studentRoutes     = require('./routes/students');
@@ -38,13 +40,23 @@ const app  = express();
 const PORT = process.env.PORT || 3000;
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
+app.use(helmet());
 app.use(express.json());
 app.use(cookieParser());
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Serve static frontend
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
+app.post('/api/auth/login', loginLimiter);
 app.use('/api/auth',         authRoutes);
 app.use('/api/students',     studentRoutes);
 app.use('/api/fees',         feeRoutes);

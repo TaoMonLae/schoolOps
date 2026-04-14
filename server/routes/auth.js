@@ -31,6 +31,7 @@ router.post('/login', (req, res) => {
 
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    audit(null, 'LOGIN_FAILED', 'users', null, `Failed login attempt for username: ${username}`);
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   if (!user.is_active) {
