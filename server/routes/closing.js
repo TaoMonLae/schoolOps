@@ -1,13 +1,9 @@
 const express = require('express');
 const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { MONTHS } = require('../services/financeControls');
 
 const router = express.Router();
-
-const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-];
 
 function getPeriodTotals(year, month) {
   const ym = `${year}-${String(month).padStart(2, '0')}`;
@@ -63,9 +59,10 @@ function getPeriodTotals(year, month) {
 // GET /api/closing — list all monthly closings
 router.get('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   const rows = db.prepare(`
-    SELECT mc.*, u.name AS closed_by_name
+    SELECT mc.*, u.name AS closed_by_name, ru.name AS reopened_by_name
     FROM monthly_closings mc
     LEFT JOIN users u ON u.id = mc.closed_by
+    LEFT JOIN users ru ON ru.id = mc.reopened_by
     ORDER BY mc.year DESC, mc.month DESC
   `).all();
   res.json(rows);
@@ -77,7 +74,8 @@ router.get('/status', requireAuth, requireRole('admin', 'teacher'), (req, res) =
   if (!month || !year) return res.status(400).json({ error: 'month and year required' });
 
   const m = parseInt(month); const y = parseInt(year);
-  const closed = db.prepare('SELECT * FROM monthly_closings WHERE year = ? AND month = ?').get(y, m);
+  const closed = db.prepare('SELECT * FROM monthly_closings WHERE year = ? AND month = ? AND COALESCE(is_reopened, 0) = 0').get(y, m);
+  const controlEvent = db.prepare('SELECT * FROM monthly_closings WHERE year = ? AND month = ?').get(y, m);
   const totals = getPeriodTotals(y, m);
   const entryCount = db.prepare(
     "SELECT COUNT(*) AS n FROM cashbook_entries WHERE voided=0 AND strftime('%Y-%m',entry_date)=?"
@@ -85,7 +83,7 @@ router.get('/status', requireAuth, requireRole('admin', 'teacher'), (req, res) =
 
   res.json({
     is_closed: !!closed,
-    closing: closed || null,
+    closing: controlEvent || null,
     preview: { ...totals, entry_count: entryCount },
     period_label: `${MONTHS[m-1]} ${y}`,
   });
@@ -97,13 +95,36 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
   if (!month || !year) return res.status(400).json({ error: 'month and year required' });
 
   const m = parseInt(month); const y = parseInt(year);
-  const existing = db.prepare('SELECT id FROM monthly_closings WHERE year = ? AND month = ?').get(y, m);
-  if (existing) return res.status(409).json({ error: `${MONTHS[m-1]} ${y} is already closed` });
+  const existing = db.prepare('SELECT * FROM monthly_closings WHERE year = ? AND month = ?').get(y, m);
+  if (existing && !existing.is_reopened) return res.status(409).json({ error: `${MONTHS[m-1]} ${y} is already closed` });
 
   const totals = getPeriodTotals(y, m);
-  let result;
-  try {
-    result = db.prepare(`
+  let resultId;
+  if (existing && existing.is_reopened) {
+    db.prepare(`
+      UPDATE monthly_closings
+      SET closed_at = datetime('now'),
+          closed_by = ?,
+          opening_cash = ?,
+          opening_bank = ?,
+          total_income = ?,
+          total_expense = ?,
+          closing_cash = ?,
+          closing_bank = ?,
+          notes = ?,
+          is_reopened = 0
+      WHERE id = ?
+    `).run(
+      req.user.id,
+      totals.openingCash, totals.openingBank,
+      totals.totalIncome, totals.totalExpense,
+      totals.closingCash, totals.closingBank,
+      notes || existing.notes || null,
+      existing.id
+    );
+    resultId = existing.id;
+  } else {
+    const result = db.prepare(`
       INSERT INTO monthly_closings
         (year, month, closed_by, opening_cash, opening_bank, total_income, total_expense, closing_cash, closing_bank, notes)
       VALUES (?,?,?,?,?,?,?,?,?,?)
@@ -112,24 +133,33 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
       totals.totalIncome, totals.totalExpense,
       totals.closingCash, totals.closingBank,
       notes || null);
-  } catch (err) {
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') return res.status(409).json({ error: 'Already closed' });
-    throw err;
+    resultId = result.lastInsertRowid;
   }
 
-  audit(req.user.id, 'CLOSE_PERIOD', 'monthly_closings', result.lastInsertRowid,
+  audit(req.user.id, 'CLOSE_PERIOD', 'monthly_closings', resultId,
     `Closed ${MONTHS[m-1]} ${y} – income ${totals.totalIncome}, expense ${totals.totalExpense}`);
-  res.status(201).json({ id: result.lastInsertRowid, ...totals });
+  res.status(201).json({ id: resultId, ...totals });
 });
 
 // DELETE /api/closing/:id — reopen a closed period (admin only)
 router.delete('/:id(\\d+)', requireAuth, requireRole('admin'), (req, res) => {
   const closing = db.prepare('SELECT * FROM monthly_closings WHERE id = ?').get(req.params.id);
   if (!closing) return res.status(404).json({ error: 'Closing record not found' });
+  const { reopen_reason } = req.body;
+  if (!reopen_reason || !String(reopen_reason).trim())
+    return res.status(400).json({ error: 'Reopen reason is required' });
+  if (closing.is_reopened) return res.status(400).json({ error: 'Period is already reopened' });
 
-  db.prepare('DELETE FROM monthly_closings WHERE id = ?').run(req.params.id);
+  db.prepare(`
+    UPDATE monthly_closings
+    SET is_reopened = 1,
+        reopened_at = datetime('now'),
+        reopened_by = ?,
+        reopen_reason = ?
+    WHERE id = ?
+  `).run(req.user.id, String(reopen_reason).trim(), req.params.id);
   audit(req.user.id, 'REOPEN_PERIOD', 'monthly_closings', req.params.id,
-    `Reopened ${MONTHS[closing.month-1]} ${closing.year}`);
+    `Reopened ${MONTHS[closing.month-1]} ${closing.year}: ${String(reopen_reason).trim()}`);
   res.json({ ok: true });
 });
 

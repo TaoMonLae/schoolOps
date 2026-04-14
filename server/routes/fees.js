@@ -5,6 +5,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { getSettings } = require('../services/settings');
 const { generateUnpaidFeeReminderBatch } = require('../services/notifications');
 const { drawPdfLogo } = require('../services/pdfBranding');
+const { assertPeriodOpen } = require('../services/financeControls');
 
 const router = express.Router();
 const MONTHS = [
@@ -99,6 +100,8 @@ router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   // Check student exists
   const student = db.prepare('SELECT id, name FROM students WHERE id = ?').get(student_id);
   if (!student) return res.status(404).json({ error: 'Student not found' });
+  const closedError = assertPeriodOpen({ year: parsedYear, month: parsedMonth, action: 'posting fee payments' });
+  if (closedError) return res.status(409).json({ error: closedError });
 
   let result;
   try {
@@ -211,9 +214,22 @@ router.delete('/:id(\\d+)', requireAuth, requireRole('admin'), (req, res) => {
   const payment = db.prepare('SELECT * FROM fee_payments WHERE id = ?').get(req.params.id);
   if (!payment) return res.status(404).json({ error: 'Payment not found' });
   if (payment.voided) return res.status(400).json({ error: 'Already voided' });
+  const { void_reason } = req.body;
+  if (!void_reason || !String(void_reason).trim())
+    return res.status(400).json({ error: 'Void reason is required' });
+  const closedError = assertPeriodOpen({
+    year: payment.period_year,
+    month: payment.period_month,
+    action: 'voiding fee payments',
+  });
+  if (closedError) return res.status(409).json({ error: closedError });
 
-  db.prepare('UPDATE fee_payments SET voided = 1 WHERE id = ?').run(req.params.id);
-  audit(req.user.id, 'VOID', 'fee_payments', req.params.id, `Voided payment ${req.params.id}`);
+  db.prepare(`
+    UPDATE fee_payments
+    SET voided = 1, void_reason = ?, voided_by = ?, voided_at = datetime('now')
+    WHERE id = ?
+  `).run(String(void_reason).trim(), req.user.id, req.params.id);
+  audit(req.user.id, 'VOID', 'fee_payments', req.params.id, `Voided payment ${req.params.id}: ${String(void_reason).trim()}`);
   res.json({ ok: true });
 });
 

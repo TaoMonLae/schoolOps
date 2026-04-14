@@ -1,6 +1,7 @@
 const express = require('express');
 const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { assertDatePeriodOpen } = require('../services/financeControls');
 
 const router = express.Router();
 
@@ -116,6 +117,8 @@ router.put('/:id(\\d+)', requireAuth, requireRole('admin'), (req, res) => {
 router.post('/:id(\\d+)/opening-balance', requireAuth, requireRole('admin'), (req, res) => {
   const { balance, balance_date } = req.body;
   if (balance == null || !balance_date) return res.status(400).json({ error: 'balance and balance_date required' });
+  const closedError = assertDatePeriodOpen(balance_date, 'changing opening balances');
+  if (closedError) return res.status(409).json({ error: closedError });
 
   const acct = db.prepare('SELECT * FROM chart_of_accounts WHERE id = ?').get(req.params.id);
   if (!acct) return res.status(404).json({ error: 'Account not found' });

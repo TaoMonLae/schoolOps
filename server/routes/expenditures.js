@@ -1,9 +1,8 @@
 const express = require('express');
-const fs = require('fs');
 const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { resolveStoragePath } = require('../services/attachments');
-const { recordStockMovement, deleteStockMovementById } = require('../services/inventory');
+const { recordStockMovement } = require('../services/inventory');
+const { assertDatePeriodOpen, assertPeriodOpen } = require('../services/financeControls');
 
 const router = express.Router();
 
@@ -21,13 +20,9 @@ function normalizeStockFields({ stock_item_id, stock_quantity, amount, expense_d
 }
 
 function syncExpenditureStockMovement(expenditure, actorId) {
-  if (expenditure.stock_movement_id) {
-    deleteStockMovementById(expenditure.stock_movement_id);
-    db.prepare('UPDATE expenditures SET stock_movement_id = NULL WHERE id = ?').run(expenditure.id);
-  }
-
   const { stockItemId, stockQty, amountNum, expenseDate } = normalizeStockFields(expenditure);
-  if (!stockItemId || !Number.isFinite(stockQty) || stockQty <= 0 || !expenseDate) return null;
+  if (!stockItemId || !Number.isFinite(stockQty) || stockQty <= 0 || !expenseDate) return expenditure.stock_movement_id || null;
+  if (expenditure.stock_movement_id) return expenditure.stock_movement_id;
 
   const movementId = recordStockMovement({
     itemId: stockItemId,
@@ -61,7 +56,7 @@ router.get('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
       WHERE entity_type = 'expenditure'
       GROUP BY entity_id
     ) att ON att.entity_id = e.id
-    WHERE 1=1
+    WHERE e.voided = 0
   `;
   const params = [];
 
@@ -107,6 +102,8 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
     return res.status(400).json({ error: 'Description must be 500 characters or fewer' });
   if (notes && notes.length > 1000)
     return res.status(400).json({ error: 'Notes must be 1000 characters or fewer' });
+  const closedError = assertDatePeriodOpen(expense_date, 'posting expenditures');
+  if (closedError) return res.status(409).json({ error: closedError });
 
   const tx = db.transaction(() => {
     const result = db.prepare(`
@@ -148,6 +145,10 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
 router.put('/:id', requireAuth, requireRole('admin'), (req, res) => {
   const existing = db.prepare('SELECT * FROM expenditures WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Expenditure not found' });
+  if (existing.voided) return res.status(400).json({ error: 'Voided expenditures cannot be edited' });
+  const effectiveDate = req.body.expense_date || existing.expense_date;
+  const closedError = assertDatePeriodOpen(effectiveDate, 'editing expenditures');
+  if (closedError) return res.status(409).json({ error: closedError });
 
   const { category, description, amount, expense_date, receipt_ref, notes, stock_item_id, stock_quantity } = req.body;
   const nextValues = {
@@ -200,40 +201,49 @@ router.put('/:id', requireAuth, requireRole('admin'), (req, res) => {
 router.delete('/:id', requireAuth, requireRole('admin'), (req, res) => {
   const existing = db.prepare('SELECT * FROM expenditures WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Expenditure not found' });
+  if (existing.voided) return res.status(400).json({ error: 'Expenditure already voided' });
+  const { void_reason } = req.body;
+  if (!void_reason || !String(void_reason).trim())
+    return res.status(400).json({ error: 'Void reason is required' });
+  const closedError = assertPeriodOpen({
+    year: Number(existing.expense_date.slice(0, 4)),
+    month: Number(existing.expense_date.slice(5, 7)),
+    action: 'voiding expenditures',
+  });
+  if (closedError) return res.status(409).json({ error: closedError });
 
-  // Collect file paths BEFORE any deletion (read-only phase)
-  const attachments = db.prepare(`
-    SELECT id, stored_name FROM attachments
-    WHERE entity_type = 'expenditure' AND entity_id = ?
-  `).all(req.params.id);
-
-  const filePaths = attachments.map(att => ({
-    id: att.id,
-    path: resolveStoragePath('expenditure', att.stored_name),
-  }));
-
-  // DB deletion in a single atomic transaction
   const tx = db.transaction(() => {
-    db.prepare(`DELETE FROM attachments WHERE entity_type = 'expenditure' AND entity_id = ?`)
-      .run(req.params.id);
+    let reversalMovementId = null;
     if (existing.stock_movement_id) {
-      deleteStockMovementById(existing.stock_movement_id);
+      const movement = db.prepare('SELECT * FROM stock_movements WHERE id = ?').get(existing.stock_movement_id);
+      if (movement) {
+        reversalMovementId = recordStockMovement({
+          itemId: movement.item_id,
+          movementType: 'adjustment',
+          quantity: -Number(movement.quantity || 0),
+          unitCost: movement.unit_cost,
+          movementDate: existing.expense_date,
+          notes: `Reversal of stock movement #${movement.id} for voided expenditure #${existing.id}`,
+          refTable: 'expenditures',
+          refId: existing.id,
+          createdBy: req.user.id,
+        });
+      }
     }
-    db.prepare('DELETE FROM expenditures WHERE id = ?').run(req.params.id);
+    db.prepare(`
+      UPDATE expenditures
+      SET voided = 1,
+          void_reason = ?,
+          voided_by = ?,
+          voided_at = datetime('now'),
+          stock_reversal_movement_id = ?
+      WHERE id = ?
+    `).run(String(void_reason).trim(), req.user.id, reversalMovementId, req.params.id);
   });
 
-  tx(); // throws on failure — response not yet sent, so caller gets 500
+  tx();
 
-  // File deletion AFTER successful DB commit (best-effort)
-  for (const { path: filePath } of filePaths) {
-    try {
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    } catch (fileErr) {
-      console.error(`Warning: could not delete attachment file ${filePath}:`, fileErr.message);
-    }
-  }
-
-  audit(req.user.id, 'DELETE', 'expenditures', req.params.id, `Deleted expenditure ${req.params.id}`);
+  audit(req.user.id, 'VOID', 'expenditures', req.params.id, `Voided expenditure ${req.params.id}: ${String(void_reason).trim()}`);
   res.json({ ok: true });
 });
 

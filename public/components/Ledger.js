@@ -26,7 +26,7 @@ window.Ledger = function Ledger() {
   const [saving,       setSaving]       = React.useState(false);
 
   const [acctForm, setAcctForm] = React.useState({ code:'', name:'', type:'expense', sub_type:'', description:'' });
-  const [obForm,   setObForm]   = React.useState({ balance:'', balance_date: now.toISOString().slice(0,10) });
+  const [obForm,   setObForm]   = React.useState({ balance:'', balance_date: window.todayLocalISO() });
   const [fundForm, setFundForm] = React.useState({ name:'', funder_name:'', description:'', is_restricted:true });
   const [closeForm,setCloseForm]= React.useState({ month: now.getMonth()+1, year: now.getFullYear(), notes:'' });
   const [closePreview, setClosePreview] = React.useState(null);
@@ -143,8 +143,13 @@ window.Ledger = function Ledger() {
 
   const handleReopenMonth = async (c) => {
     if (!confirm(`Reopen ${MONTHS_FULL[c.month-1]} ${c.year}? This will allow editing of that period.`)) return;
+    const reopen_reason = window.prompt('Reopen reason (required for audit trail):');
+    if (!reopen_reason || !reopen_reason.trim()) {
+      showToast('Reopen reason is required', 'error');
+      return;
+    }
     try {
-      await api(`/api/closing/${c.id}`, { method:'DELETE' });
+      await api(`/api/closing/${c.id}`, { method:'DELETE', body: { reopen_reason: reopen_reason.trim() } });
       showToast('Period reopened');
       loadAll();
     } catch (err) { showToast(err.message, 'error'); }
@@ -240,7 +245,7 @@ window.Ledger = function Ledger() {
                             <td>
                               <div style={{ display:'flex', gap:4 }}>
                                 <button className="btn btn-secondary btn-sm btn-icon" title="Set opening balance"
-                                  onClick={() => { setObModal(a); setObForm({ balance: a.opening_balance ?? '', balance_date: a.opening_balance_date || now.toISOString().slice(0,10) }); }}>
+                                  onClick={() => { setObModal(a); setObForm({ balance: a.opening_balance ?? '', balance_date: a.opening_balance_date || window.todayLocalISO() }); }}>
                                   
                                 </button>
                               </div>
@@ -460,7 +465,10 @@ window.Ledger = function Ledger() {
                         <tr key={c.id}>
                           <td style={{ fontWeight:700 }}>
                             {MONTHS_FULL[c.month-1]} {c.year}
-                            <span className="badge badge-green" style={{ marginLeft:8 }}>Closed</span>
+                            <span className={`badge ${c.is_reopened ? 'badge-amber' : 'badge-green'}`} style={{ marginLeft:8 }}>
+                              {c.is_reopened ? 'Reopened' : 'Closed'}
+                            </span>
+                            {c.is_reopened && c.reopen_reason ? <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>Reason: {c.reopen_reason}</div> : null}
                           </td>
                           <td>{c.closed_by_name || '—'}</td>
                           <td style={{ fontSize:12 }}>{c.closed_at?.slice(0,10)}</td>
@@ -471,7 +479,7 @@ window.Ledger = function Ledger() {
                           <td style={{ textAlign:'right', fontFamily:'monospace', fontSize:12 }}>{Number(c.closing_cash).toFixed(2)}</td>
                           <td style={{ textAlign:'right', fontFamily:'monospace', fontSize:12 }}>{Number(c.closing_bank).toFixed(2)}</td>
                           <td>
-                            <button className="btn btn-secondary btn-sm" title="Reopen period (admin)"
+                            <button className="btn btn-secondary btn-sm" title="Reopen period (admin)" disabled={!!c.is_reopened}
                               onClick={() => handleReopenMonth(c)}>
                               Reopen
                             </button>

@@ -265,6 +265,36 @@ window.Reports = function Reports() {
             </table>
           )}
         </div>
+
+        <div className="card" style={{ marginTop: 16 }}>
+          <div className="card-title">Finance Controls — Voids & Period Events</div>
+          <div style={{ display:'grid', gap:12 }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', marginBottom:6 }}>Voided Fee Payments</div>
+              {data.financeControls.voidedFees.length === 0 ? <div style={{ fontSize:12, color:'var(--muted)' }}>None</div> : (
+                <table><thead><tr><th>Date</th><th>Student</th><th>Actor</th><th>Reason</th></tr></thead><tbody>
+                  {data.financeControls.voidedFees.map(v => <tr key={`vf-${v.id}`}><td>{v.voided_at || v.event_date}</td><td>{v.reference_name}</td><td>{v.actor_name || '—'}</td><td>{v.void_reason}</td></tr>)}
+                </tbody></table>
+              )}
+            </div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', marginBottom:6 }}>Voided Cashbook Entries</div>
+              {data.financeControls.voidedCashbook.length === 0 ? <div style={{ fontSize:12, color:'var(--muted)' }}>None</div> : (
+                <table><thead><tr><th>Date</th><th>Reference</th><th>Actor</th><th>Reason</th></tr></thead><tbody>
+                  {data.financeControls.voidedCashbook.map(v => <tr key={`vc-${v.id}`}><td>{v.voided_at || v.event_date}</td><td>{v.ref_number}</td><td>{v.actor_name || '—'}</td><td>{v.void_reason}</td></tr>)}
+                </tbody></table>
+              )}
+            </div>
+            <div>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', marginBottom:6 }}>Voided Expenditures</div>
+              {data.financeControls.voidedExpenditures.length === 0 ? <div style={{ fontSize:12, color:'var(--muted)' }}>None</div> : (
+                <table><thead><tr><th>Date</th><th>Description</th><th>Actor</th><th>Reason</th></tr></thead><tbody>
+                  {data.financeControls.voidedExpenditures.map(v => <tr key={`ve-${v.id}`}><td>{v.voided_at || v.event_date}</td><td>{v.description}</td><td>{v.actor_name || '—'}</td><td>{v.void_reason}</td></tr>)}
+                </tbody></table>
+              )}
+            </div>
+          </div>
+        </div>
       </>
     );
   };

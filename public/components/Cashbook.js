@@ -28,7 +28,7 @@ window.Cashbook = function Cashbook() {
   const MONTHS_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   const EMPTY_FORM = {
-    entry_date: now.toISOString().slice(0,10),
+    entry_date: window.todayLocalISO(),
     description: '',
     debit_account_id: '',
     credit_account_id: '',
@@ -90,6 +90,12 @@ window.Cashbook = function Cashbook() {
     if (form.debit_account_id === form.credit_account_id && form.debit_account_id)
       e.credit_account_id = 'Must differ from debit';
     if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) e.amount = 'Positive number required';
+    if ((form.payment_method === 'bank' || form.payment_method === 'transfer') && !form.payment_ref.trim()) {
+      e.payment_ref = 'Required for bank/transfer';
+    }
+    if ((form.payment_method === 'bank' || form.payment_method === 'transfer') && !form.bank_account_name.trim()) {
+      e.bank_account_name = 'Required for bank/transfer';
+    }
     return e;
   };
 
@@ -115,6 +121,10 @@ window.Cashbook = function Cashbook() {
 
   const handleVoid = async () => {
     if (!voidTarget) return;
+    if (!voidReason.trim()) {
+      showToast('Void reason is required', 'error');
+      return;
+    }
     try {
       await api(`/api/cashbook/${voidTarget.id}`, { method: 'DELETE', body: { void_reason: voidReason } });
       showToast('Entry voided');
@@ -336,12 +346,14 @@ window.Cashbook = function Cashbook() {
                     <label>Bank Account Name</label>
                     <input value={form.bank_account_name} placeholder="e.g. CIMB Main Account"
                       onChange={e => setForm(f => ({...f, bank_account_name: e.target.value}))} />
+                    {errors.bank_account_name && <small style={{color:'var(--red)'}}>{errors.bank_account_name}</small>}
                   </div>
                 )}
                 <div className="form-group">
                   <label>Payment Reference</label>
                   <input value={form.payment_ref} placeholder="Cheque no., bank ref, receipt no…"
                     onChange={e => setForm(f => ({...f, payment_ref: e.target.value}))} />
+                  {errors.payment_ref && <small style={{color:'var(--red)'}}>{errors.payment_ref}</small>}
                 </div>
                 <div className="form-group span2">
                   <label>Notes</label>
@@ -384,7 +396,7 @@ window.Cashbook = function Cashbook() {
             <div className="form-group">
               <label>Reason for voiding</label>
               <input value={voidReason} onChange={e => setVoidReason(e.target.value)}
-                placeholder="Entered in error, duplicate…" />
+                placeholder="Required audit reason…" />
             </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setVoidTarget(null)}>Cancel</button>

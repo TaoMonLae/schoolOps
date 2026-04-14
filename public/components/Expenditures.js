@@ -18,7 +18,7 @@ window.Expenditures = function Expenditures() {
   const PER = 20;
 
   const CATEGORIES = ['utilities','supplies','transport','rent','food','cleaning','other'];
-  const EMPTY = { category:'', description:'', amount:'', expense_date: now.toISOString().slice(0,10), receipt_ref:'', notes:'', stock_item_id:'', stock_quantity:'' };
+  const EMPTY = { category:'', description:'', amount:'', expense_date: window.todayLocalISO(), receipt_ref:'', notes:'', stock_item_id:'', stock_quantity:'' };
   const [form, setForm] = React.useState(EMPTY);
 
   const years = [];
@@ -103,10 +103,15 @@ window.Expenditures = function Expenditures() {
   };
 
   const handleDelete = async (r) => {
-    if (!confirm2(`Delete "${r.description}"?`)) return;
+    if (!confirm2(`Void "${r.description}"?`)) return;
+    const void_reason = window.prompt('Void reason (required for audit trail):');
+    if (!void_reason || !void_reason.trim()) {
+      showToast('Void reason is required', 'error');
+      return;
+    }
     try {
-      await api(`/api/expenditures/${r.id}`, { method: 'DELETE' });
-      showToast('Expenditure deleted');
+      await api(`/api/expenditures/${r.id}`, { method: 'DELETE', body: { void_reason: void_reason.trim() } });
+      showToast('Expenditure voided');
       load();
     } catch (e) { showToast(e.message, 'error'); }
   };
@@ -184,7 +189,7 @@ window.Expenditures = function Expenditures() {
                       <td>
                         <div className="table-row-actions">
                           <button className="btn btn-secondary btn-sm" onClick={() => openEdit(r)}>Edit</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r)}>Del</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r)}>Void</button>
                         </div>
                       </td>
                     </tr>
