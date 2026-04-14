@@ -54,6 +54,12 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
   if (!name || !username || !role || !password) {
     return res.status(400).json({ error: 'name, username, role, and password are required' });
   }
+  if (name.trim().length > 150)
+    return res.status(400).json({ error: 'Name must be 150 characters or fewer' });
+  if (username.trim().length > 50)
+    return res.status(400).json({ error: 'Username must be 50 characters or fewer' });
+  if (password.length > 128)
+    return res.status(400).json({ error: 'Password must be 128 characters or fewer' });
   if (!['admin', 'teacher', 'student'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }

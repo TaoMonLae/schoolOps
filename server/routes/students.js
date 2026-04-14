@@ -443,6 +443,12 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
   const { name, gender, level, enroll_date, fee_amount, fee_frequency, notes, dorm_house, room, bed_number, hostel_status } = req.body;
   if (!name || !gender || !level || !enroll_date)
     return res.status(400).json({ error: 'name, gender, level, enroll_date required' });
+  if (name && name.length > 150)
+    return res.status(400).json({ error: 'Name must be 150 characters or fewer' });
+  if (notes && notes.length > 1000)
+    return res.status(400).json({ error: 'Notes must be 1000 characters or fewer' });
+  if (dorm_house && dorm_house.length > 100)
+    return res.status(400).json({ error: 'Dorm house must be 100 characters or fewer' });
   if (hostel_status && !HOSTEL_STATUSES.includes(hostel_status)) {
     return res.status(400).json({ error: 'Invalid hostel_status' });
   }
@@ -473,6 +479,12 @@ router.put('/:id(\\d+)', requireAuth, requireRole('admin'), (req, res) => {
   const { name, gender, level, enroll_date, fee_amount, fee_frequency, status, notes, dorm_house, room, bed_number, hostel_status } = req.body;
   const existing = db.prepare('SELECT id FROM students WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Student not found' });
+  if (name && name.length > 150)
+    return res.status(400).json({ error: 'Name must be 150 characters or fewer' });
+  if (notes && notes.length > 1000)
+    return res.status(400).json({ error: 'Notes must be 1000 characters or fewer' });
+  if (dorm_house && dorm_house.length > 100)
+    return res.status(400).json({ error: 'Dorm house must be 100 characters or fewer' });
   if (hostel_status && !HOSTEL_STATUSES.includes(hostel_status)) {
     return res.status(400).json({ error: 'Invalid hostel_status' });
   }

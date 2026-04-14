@@ -164,6 +164,12 @@ router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
     return res.status(400).json({ error: 'Debit and credit accounts must differ' });
   if (Number(amount) <= 0)
     return res.status(400).json({ error: 'Amount must be positive' });
+  if (description.length > 500)
+    return res.status(400).json({ error: 'Description must be 500 characters or fewer' });
+  if (notes && notes.length > 1000)
+    return res.status(400).json({ error: 'Notes must be 1000 characters or fewer' });
+  if (payment_ref && payment_ref.length > 100)
+    return res.status(400).json({ error: 'Payment reference must be 100 characters or fewer' });
 
   // Validate accounts exist
   const da = db.prepare('SELECT id FROM chart_of_accounts WHERE id = ? AND is_active = 1').get(debit_account_id);
