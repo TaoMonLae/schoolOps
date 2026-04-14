@@ -76,14 +76,23 @@ router.get('/student/:id', requireAuth, requireRole('admin', 'teacher'), (req, r
 // POST /api/fees — record payment
 router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   const { student_id, amount, paid_date, method, period_month, period_year, notes } = req.body;
-  if (
-    student_id == null ||
-    amount == null ||
-    !paid_date ||
-    period_month == null ||
-    period_year == null
-  )
+  if (student_id == null || amount == null || !paid_date || period_month == null || period_year == null)
     return res.status(400).json({ error: 'student_id, amount, paid_date, period_month, period_year required' });
+
+  const parsedAmount = Number(amount);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0)
+    return res.status(400).json({ error: 'Amount must be a positive number' });
+
+  const parsedMonth = Number(period_month);
+  const parsedYear = Number(period_year);
+  if (!Number.isInteger(parsedMonth) || parsedMonth < 1 || parsedMonth > 12)
+    return res.status(400).json({ error: 'period_month must be between 1 and 12' });
+  if (!Number.isInteger(parsedYear) || parsedYear < 2000 || parsedYear > 2100)
+    return res.status(400).json({ error: 'period_year must be between 2000 and 2100' });
+
+  const validMethods = ['cash', 'bank_transfer', 'online'];
+  if (method && !validMethods.includes(method))
+    return res.status(400).json({ error: 'Invalid payment method' });
 
   // Check student exists
   const student = db.prepare('SELECT id, name FROM students WHERE id = ?').get(student_id);
@@ -96,8 +105,8 @@ router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
         (student_id, amount, paid_date, method, period_month, period_year, received_by, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      student_id, amount, paid_date, method || 'cash',
-      period_month, period_year, req.user.id, notes || null
+      student_id, parsedAmount, paid_date, method || 'cash',
+      parsedMonth, parsedYear, req.user.id, notes || null
     );
   } catch (err) {
     if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -106,8 +115,9 @@ router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
     throw err;
   }
 
+  const currency = getSettings().currency || 'RM';
   audit(req.user.id, 'CREATE', 'fee_payments', result.lastInsertRowid,
-    `Payment RM${amount} for ${student.name} ${period_month}/${period_year}`);
+    `Payment ${currency}${parsedAmount.toFixed(2)} for ${student.name} ${parsedMonth}/${parsedYear}`);
 
   generateUnpaidFeeReminderBatch({ actorId: req.user.id });
 

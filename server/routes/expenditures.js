@@ -100,6 +100,14 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
   if (!category || !description || amount == null || !expense_date)
     return res.status(400).json({ error: 'category, description, amount, expense_date required' });
 
+  const parsedAmount = Number(amount);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0)
+    return res.status(400).json({ error: 'Amount must be a positive number' });
+  if (description && description.length > 500)
+    return res.status(400).json({ error: 'Description must be 500 characters or fewer' });
+  if (notes && notes.length > 1000)
+    return res.status(400).json({ error: 'Notes must be 1000 characters or fewer' });
+
   const tx = db.transaction(() => {
     const result = db.prepare(`
       INSERT INTO expenditures (category, description, amount, expense_date, added_by, receipt_ref, notes, stock_item_id, stock_quantity)
@@ -107,7 +115,7 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
     `).run(
       category,
       description,
-      amount,
+      parsedAmount,
       expense_date,
       req.user.id,
       receipt_ref || null,
