@@ -42,6 +42,10 @@ router.post('/login', (req, res) => {
     audit(user.id, 'LOGIN_BLOCKED', 'users', user.id, `Login attempt on login-disabled account: ${user.username}`);
     return res.status(403).json({ error: 'Login disabled for this account' });
   }
+  if (user.is_retired) {
+    audit(user.id, 'LOGIN_BLOCKED', 'users', user.id, `Login attempt on retired account: ${user.username}`);
+    return res.status(403).json({ error: 'Account is retired' });
+  }
 
   const token = signToken(user);
   res.cookie('token', token, getCookieOptions());
@@ -69,12 +73,12 @@ router.post('/logout', (req, res) => {
 // GET /api/auth/me
 router.get('/me', requireAuth, (req, res) => {
   const user = db.prepare(`
-    SELECT id, name, username, role, is_active, login_disabled, must_change_password
+    SELECT id, name, username, role, is_active, login_disabled, must_change_password, COALESCE(is_retired, 0) AS is_retired
     FROM users
     WHERE id = ?
   `).get(req.user.id);
 
-  if (!user || !user.is_active || user.login_disabled) {
+  if (!user || !user.is_active || user.login_disabled || user.is_retired) {
     res.clearCookie('token', getClearCookieOptions());
     return res.status(401).json({ error: 'Account is not allowed to access this session' });
   }
