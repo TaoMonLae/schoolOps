@@ -105,7 +105,7 @@ window.StudentMovement = function StudentMovement({ user }) {
           )}
 
           {activeMovement ? (
-            <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card" style={{ marginBottom: 16, maxWidth: '100%' }}>
               <div className="card-title">Clock Back In</div>
               <div style={{ marginBottom: 12 }}>
                 <strong>Destination:</strong> {activeMovement.destination || '—'}
@@ -123,7 +123,7 @@ window.StudentMovement = function StudentMovement({ user }) {
               </button>
             </div>
           ) : (
-            <div className="card" style={{ marginBottom: 16 }}>
+            <div className="card" style={{ marginBottom: 16, maxWidth: '100%' }}>
               <div className="card-title">Clock Out</div>
               <form onSubmit={handleClockOut}>
                 <div className="form-grid">
@@ -162,8 +162,9 @@ window.StudentMovement = function StudentMovement({ user }) {
             </div>
           )}
 
-          <div className="card">
+          <div className="card" style={{ maxWidth: '100%' }}>
             <div className="card-title">My Movement History</div>
+            <div className="table-scroll">
             <table>
               <thead>
                 <tr>
@@ -198,6 +199,7 @@ window.StudentMovement = function StudentMovement({ user }) {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         </>
       )}
