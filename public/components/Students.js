@@ -23,10 +23,14 @@ window.Students = function Students({ user }) {
   const [resetErrors, setResetErrors] = React.useState({});
   const [resettingLogin, setResettingLogin] = React.useState(false);
   const [page, setPage] = React.useState(1);
+  const [openMoreMenuId, setOpenMoreMenuId] = React.useState(null);
+  const [moreMenuPosition, setMoreMenuPosition] = React.useState({ top: 0, left: 0, placement: 'down' });
   const [importing, setImporting] = React.useState(false);
   const [importResult, setImportResult] = React.useState(null);
   const [exporting, setExporting] = React.useState(false);
   const importFileRef = React.useRef(null);
+  const moreMenuRef = React.useRef(null);
+  const moreMenuTriggerRefs = React.useRef({});
   const PER = 15;
 
   const load = React.useCallback(async () => {
@@ -39,6 +43,67 @@ window.Students = function Students({ user }) {
   }, [month, year]);
 
   React.useEffect(() => { load(); }, [load]);
+
+  const closeMoreMenu = React.useCallback(() => {
+    setOpenMoreMenuId(null);
+  }, []);
+
+  const updateMoreMenuPosition = React.useCallback((rowId) => {
+    const trigger = moreMenuTriggerRefs.current[rowId];
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const menuEl = moreMenuRef.current;
+    const viewportPadding = 8;
+    const gap = 6;
+    const menuHeight = menuEl ? menuEl.offsetHeight : 220;
+    const menuWidth = menuEl ? menuEl.offsetWidth : 180;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const canOpenDown = spaceBelow >= menuHeight + gap + viewportPadding;
+    const placement = canOpenDown ? 'down' : 'up';
+    const top = placement === 'down'
+      ? rect.bottom + gap + window.scrollY
+      : rect.top - menuHeight - gap + window.scrollY;
+    const preferredLeft = rect.right - menuWidth + window.scrollX;
+    const minLeft = window.scrollX + viewportPadding;
+    const maxLeft = window.scrollX + window.innerWidth - menuWidth - viewportPadding;
+    const left = Math.min(Math.max(preferredLeft, minLeft), Math.max(minLeft, maxLeft));
+    setMoreMenuPosition({ top: Math.max(window.scrollY + viewportPadding, top), left, placement });
+  }, []);
+
+  const openMoreMenu = React.useCallback((rowId) => {
+    setOpenMoreMenuId((current) => (current === rowId ? null : rowId));
+  }, []);
+
+  React.useEffect(() => {
+    if (!openMoreMenuId) return;
+    updateMoreMenuPosition(openMoreMenuId);
+    const raf = window.requestAnimationFrame(() => updateMoreMenuPosition(openMoreMenuId));
+    const handleViewportChange = () => updateMoreMenuPosition(openMoreMenuId);
+    const handleDocMouseDown = (event) => {
+      const menuEl = moreMenuRef.current;
+      const triggerEl = moreMenuTriggerRefs.current[openMoreMenuId];
+      if (menuEl?.contains(event.target) || triggerEl?.contains(event.target)) return;
+      closeMoreMenu();
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') closeMoreMenu();
+    };
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+    document.addEventListener('mousedown', handleDocMouseDown);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+      document.removeEventListener('mousedown', handleDocMouseDown);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [closeMoreMenu, openMoreMenuId, updateMoreMenuPosition]);
+
+  React.useEffect(() => {
+    closeMoreMenu();
+  }, [page, search, filter, month, year, rows, closeMoreMenu]);
 
   const years = [];
   for (let y = now.getFullYear(); y >= 2022; y--) years.push(y);
@@ -444,16 +509,18 @@ window.Students = function Students({ user }) {
                             {s.user_id ? 'Manage Account' : 'Create Account'}
                           </button>
                         )}
-                        <details className="row-more-menu">
-                          <summary className="btn btn-secondary btn-sm">More</summary>
-                          <div className="row-more-menu-panel">
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openContacts(s)}>Contacts</button>
-                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openHistory(s)}>Fee History</button>
-                            {isAdmin && s.user_id && <button type="button" className="btn btn-secondary btn-sm" onClick={() => unlinkStudentLogin(s)}>Unlink Account</button>}
-                            {isAdmin && s.status === 'active' && <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeactivate(s)}>Deactivate Student</button>}
-                            {isAdmin && s.status === 'inactive' && <button type="button" className="btn btn-danger btn-sm" onClick={() => handlePermanentDelete(s)}>Delete Permanently</button>}
-                          </div>
-                        </details>
+                        <div className="row-more-menu">
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            ref={(el) => { moreMenuTriggerRefs.current[s.id] = el; }}
+                            onClick={() => openMoreMenu(s.id)}
+                            aria-haspopup="menu"
+                            aria-expanded={openMoreMenuId === s.id}
+                          >
+                            More
+                          </button>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -760,6 +827,31 @@ window.Students = function Students({ user }) {
             </div>
           )}
         </window.Modal>
+      )}
+
+      {openMoreMenuId && window.ReactDOM?.createPortal(
+        <div
+          ref={moreMenuRef}
+          className="row-more-menu-panel row-more-menu-panel-portal"
+          style={{ top: moreMenuPosition.top, left: moreMenuPosition.left }}
+          data-placement={moreMenuPosition.placement}
+          role="menu"
+        >
+          {(() => {
+            const s = paged.find((row) => row.id === openMoreMenuId);
+            if (!s) return null;
+            return (
+              <>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { closeMoreMenu(); openContacts(s); }}>Contacts</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { closeMoreMenu(); openHistory(s); }}>Fee History</button>
+                {isAdmin && s.user_id && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { closeMoreMenu(); unlinkStudentLogin(s); }}>Unlink Account</button>}
+                {isAdmin && s.status === 'active' && <button type="button" className="btn btn-danger btn-sm" onClick={() => { closeMoreMenu(); handleDeactivate(s); }}>Deactivate Student</button>}
+                {isAdmin && s.status === 'inactive' && <button type="button" className="btn btn-danger btn-sm" onClick={() => { closeMoreMenu(); handlePermanentDelete(s); }}>Delete Permanently</button>}
+              </>
+            );
+          })()}
+        </div>,
+        document.body
       )}
 
       {importResult && (
