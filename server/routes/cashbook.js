@@ -303,10 +303,14 @@ router.get('/export/pdf', requireAuth, requireRole('admin', 'teacher'), (req, re
   let totalIncome = 0;
   let totalExpense = 0;
 
+  // Pre-load all account types into a Map to avoid N+1 queries inside the loop
+  const allAccounts = db.prepare('SELECT id, type FROM chart_of_accounts').all();
+  const accountTypeMap = new Map(allAccounts.map(a => [a.id, a.type]));
+
   entries.forEach((e, idx) => {
     // Track simple running total (income acct credited = income, expense acct debited = expense)
-    const debitIsExpense = db.prepare("SELECT type FROM chart_of_accounts WHERE id=?").get(e.debit_account_id)?.type === 'expense';
-    const creditIsIncome = db.prepare("SELECT type FROM chart_of_accounts WHERE id=?").get(e.credit_account_id)?.type === 'income';
+    const debitIsExpense  = accountTypeMap.get(e.debit_account_id)  === 'expense';
+    const creditIsIncome  = accountTypeMap.get(e.credit_account_id) === 'income';
     if (creditIsIncome)  { totalIncome  += e.amount; runningBalance += e.amount; }
     if (debitIsExpense)  { totalExpense += e.amount; runningBalance -= e.amount; }
 
