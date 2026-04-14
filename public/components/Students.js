@@ -31,6 +31,8 @@ window.Students = function Students({ user }) {
   const importFileRef = React.useRef(null);
   const moreMenuRef = React.useRef(null);
   const moreMenuTriggerRefs = React.useRef({});
+  const MORE_MENU_WIDTH = 200;
+  const MORE_MENU_MIN_HEIGHT = 160;
   const PER = 15;
 
   const load = React.useCallback(async () => {
@@ -55,19 +57,23 @@ window.Students = function Students({ user }) {
     const menuEl = moreMenuRef.current;
     const viewportPadding = 8;
     const gap = 6;
-    const menuHeight = menuEl ? menuEl.offsetHeight : 220;
-    const menuWidth = menuEl ? menuEl.offsetWidth : 180;
+    const menuHeight = Math.max(MORE_MENU_MIN_HEIGHT, menuEl ? menuEl.offsetHeight : 0);
+    const menuWidth = Math.max(MORE_MENU_WIDTH, menuEl ? menuEl.offsetWidth : 0);
     const spaceBelow = window.innerHeight - rect.bottom;
     const canOpenDown = spaceBelow >= menuHeight + gap + viewportPadding;
     const placement = canOpenDown ? 'down' : 'up';
     const top = placement === 'down'
-      ? rect.bottom + gap + window.scrollY
-      : rect.top - menuHeight - gap + window.scrollY;
-    const preferredLeft = rect.right - menuWidth + window.scrollX;
-    const minLeft = window.scrollX + viewportPadding;
-    const maxLeft = window.scrollX + window.innerWidth - menuWidth - viewportPadding;
+      ? rect.bottom + gap
+      : rect.top - menuHeight - gap;
+    const preferredLeft = rect.right - menuWidth;
+    const minLeft = viewportPadding;
+    const maxLeft = window.innerWidth - menuWidth - viewportPadding;
     const left = Math.min(Math.max(preferredLeft, minLeft), Math.max(minLeft, maxLeft));
-    setMoreMenuPosition({ top: Math.max(window.scrollY + viewportPadding, top), left, placement });
+    const clampedTop = Math.min(
+      Math.max(top, viewportPadding),
+      Math.max(viewportPadding, window.innerHeight - menuHeight - viewportPadding)
+    );
+    setMoreMenuPosition({ top: clampedTop, left, placement });
   }, []);
 
   const openMoreMenu = React.useCallback((rowId) => {
@@ -102,8 +108,16 @@ window.Students = function Students({ user }) {
   }, [closeMoreMenu, openMoreMenuId, updateMoreMenuPosition]);
 
   React.useEffect(() => {
-    closeMoreMenu();
-  }, [page, search, filter, month, year, rows, closeMoreMenu]);
+    if (!openMoreMenuId) return;
+    const trigger = moreMenuTriggerRefs.current[openMoreMenuId];
+    if (!trigger) {
+      closeMoreMenu();
+      return;
+    }
+    updateMoreMenuPosition(openMoreMenuId);
+    const raf = window.requestAnimationFrame(() => updateMoreMenuPosition(openMoreMenuId));
+    return () => window.cancelAnimationFrame(raf);
+  }, [page, search, filter, month, year, rows, openMoreMenuId, closeMoreMenu, updateMoreMenuPosition]);
 
   const years = [];
   for (let y = now.getFullYear(); y >= 2022; y--) years.push(y);
@@ -833,7 +847,15 @@ window.Students = function Students({ user }) {
         <div
           ref={moreMenuRef}
           className="row-more-menu-panel row-more-menu-panel-portal"
-          style={{ top: moreMenuPosition.top, left: moreMenuPosition.left }}
+          style={{
+            position: 'fixed',
+            top: moreMenuPosition.top,
+            left: moreMenuPosition.left,
+            minWidth: 180,
+            maxWidth: 240,
+            width: MORE_MENU_WIDTH,
+            zIndex: 9999,
+          }}
           data-placement={moreMenuPosition.placement}
           role="menu"
         >
