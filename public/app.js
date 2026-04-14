@@ -361,11 +361,6 @@ function Sidebar({ page, setPage, user, logout, settings, mobileOpen, onClose })
             ) : null}
             <h1>{settings.school_name}</h1>
             <small>{settings.subtitle}</small>
-            <div className="sidebar-brand-copy">
-              Built for school administration, student accountability, finance control, and cleaner daily operations.
-            </div>
-            <div className="sidebar-brand-badge">Campus-ready workflow</div>
-          </div>
         </div>
         <nav className="sidebar-nav">
           {nav.map((item, i) =>
