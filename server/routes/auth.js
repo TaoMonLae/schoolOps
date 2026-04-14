@@ -99,8 +99,14 @@ router.post('/change-password', requireAuth, (req, res) => {
   if (new_password !== confirm_password) {
     return res.status(400).json({ error: 'New password and confirmation do not match' });
   }
-  if (new_password.length < 6) {
-    return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  if (new_password.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters' });
+  }
+  if (new_password.length > 128) {
+    return res.status(400).json({ error: 'Password must be 128 characters or fewer' });
+  }
+  if (new_password === current_password) {
+    return res.status(400).json({ error: 'New password must differ from your current password' });
   }
 
   const user = db.prepare('SELECT id, username, password_hash FROM users WHERE id = ?').get(req.user.id);
