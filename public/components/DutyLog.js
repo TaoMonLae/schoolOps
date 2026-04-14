@@ -66,20 +66,48 @@ function DutySubmit({ user }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.items.some(i => !i.item_name || !i.unit_price)) {
-      showToast('Please fill in all item names and prices', 'error');
-      return;
+    const normalizedItems = form.items.map((item) => ({
+      ...item,
+      item_name: (item.item_name || '').trim(),
+    }));
+    for (let i = 0; i < normalizedItems.length; i += 1) {
+      const row = normalizedItems[i];
+      const quantity = Number(row.quantity);
+      const unitPrice = Number(row.unit_price);
+      const stockUsedRaw = row.stock_quantity_used;
+      const hasStockUsed = stockUsedRaw !== null && stockUsedRaw !== undefined && String(stockUsedRaw).trim() !== '';
+      const stockUsed = hasStockUsed ? Number(stockUsedRaw) : null;
+      const rowLabel = `Item ${i + 1}`;
+
+      if (!row.item_name) {
+        showToast(`${rowLabel}: please enter an item name.`, 'error');
+        return;
+      }
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        showToast(`${rowLabel}: quantity must be greater than 0.`, 'error');
+        return;
+      }
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+        showToast(`${rowLabel}: unit price cannot be negative.`, 'error');
+        return;
+      }
+      if (hasStockUsed && (!Number.isFinite(stockUsed) || stockUsed < 0)) {
+        showToast(`${rowLabel}: stock used must be 0 or more.`, 'error');
+        return;
+      }
     }
+
+    const payload = { ...form, items: normalizedItems };
     setSaving(true);
     try {
-      const result = await api('/api/duty', { method: 'POST', body: form });
+      const result = await api('/api/duty', { method: 'POST', body: payload });
       if (attachmentFile) {
         const fd = new FormData();
         fd.append('file', attachmentFile);
         await apiFormData(`/api/attachments/duty_log/${result.id}`, fd, { method: 'POST' });
       }
       showToast('Duty log submitted successfully!');
-      setSubmitted({ ...form, id: result.id, grandTotal, attachmentUploaded: !!attachmentFile });
+      setSubmitted({ ...payload, id: result.id, grandTotal, attachmentUploaded: !!attachmentFile });
       setForm({ duty_number:'', date: today, notes:'', items:[{ ...EMPTY_ITEM }] });
       setAttachmentFile(null);
     } catch (e) { showToast(e.message, 'error'); }
@@ -89,10 +117,10 @@ function DutySubmit({ user }) {
   return (
     <div>
       {submitted && (
-        <div style={{ background:'var(--green-light)', border:'1px solid var(--green)', borderRadius:8, padding:'14px 18px', marginBottom:16, color:'var(--green)', fontWeight:600 }}>
+        <div className="duty-submit-success">
           Duty log <strong>{submitted.duty_number}</strong> submitted — Total: {fmtRM(submitted.grandTotal)}
           {submitted.attachmentUploaded && <span> (with attachment)</span>}
-          <button className="btn btn-secondary btn-sm" style={{ marginLeft:12 }} onClick={() => setSubmitted(null)}>Submit another</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => setSubmitted(null)}>Submit another</button>
         </div>
       )}
 
@@ -127,8 +155,8 @@ function DutySubmit({ user }) {
 
           {/* Items table */}
           <div style={{ marginTop: 20, marginBottom: 8, fontWeight:700 }}>Items</div>
-          <div className="table-scroll">
-            <table className="items-table" style={{ marginBottom:0 }}>
+          <div className="table-scroll table-scroll-wide">
+            <table className="items-table duty-items-table">
               <thead>
                 <tr>
                   <th>Item Name *</th>
@@ -174,12 +202,12 @@ function DutySubmit({ user }) {
             </table>
           </div>
 
-            <div style={{ display:'flex', justifyContent:'space-between', marginTop:14, gap: 12, flexWrap: 'wrap' }}>
+            <div className="duty-actions-row">
               <div>
                 <button type="button" className="btn btn-secondary" onClick={addItem}>+ Add Item</button>
-                <div style={{ marginTop:8 }}>
+                <div className="duty-upload-block">
                   <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />
-                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>Optional evidence (pdf/jpg/png/webp, max 5MB)</div>
+                  <div className="duty-upload-help">Optional evidence (pdf/jpg/png/webp, max 5MB)</div>
                 </div>
               </div>
               <button type="submit" className="btn btn-primary" disabled={saving}>
@@ -217,7 +245,7 @@ function DutySubmit({ user }) {
               <strong style={{ color: 'var(--green)' }}>{fmtRM(grandTotal)}</strong>
             </div>
           </div>
-          <div style={{ marginTop: 16, fontSize: 12.5, color: 'var(--mid)' }}>
+          <div className="duty-check-note">
             If a line matches an inventory item, link it so reviewers can see stock usage without guessing.
           </div>
         </div>
@@ -274,7 +302,7 @@ function DutyReview({ user }) {
       <div className="card" style={{ padding:0, maxWidth: '100%' }}>
         {loading ? <div className="empty"><div className="icon">⏳</div>Loading…</div> : (
           <>
-            <div className="table-scroll">
+            <div className="table-scroll table-scroll-wide">
             <table>
               <thead>
                 <tr><th>Duty No.</th><th>Date</th><th>Submitted By</th><th>Items</th><th>Total</th><th>Att.</th><th>Status</th><th>Actions</th></tr>
@@ -294,8 +322,8 @@ function DutyReview({ user }) {
                       <td>{log.attachment_count > 0 ? <span className="badge badge-green">att {log.attachment_count}</span> : '—'}</td>
                       <td><window.StatusBadge status={log.status} /></td>
                       <td>
-                        <div style={{ display:'flex', gap:6 }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>View View</button>
+                        <div className="table-row-actions">
+                          <button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>View</button>
                           {log.status === 'pending' && <>
                             <button className="btn btn-primary btn-sm" onClick={() => handleStatus(log.id, 'approved')}>✓ Approve</button>
                             <button className="btn btn-amber btn-sm" onClick={() => {
@@ -311,7 +339,7 @@ function DutyReview({ user }) {
               </tbody>
             </table>
             </div>
-            <div style={{ padding:'12px 16px' }}>
+            <div className="card-footer-compact">
               <window.Pagination page={page} total={rows.length} perPage={PER} onChange={setPage} />
             </div>
           </>
@@ -321,14 +349,14 @@ function DutyReview({ user }) {
       {/* Detail modal */}
       {detail && (
         <window.Modal title={`Duty Log — ${detail.duty_number}`} onClose={() => setDetail(null)}>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:10, marginBottom:16, fontSize:13 }}>
+          <div className="duty-meta-grid">
             <div><strong>Date:</strong> {detail.date}</div>
             <div><strong>Submitted by:</strong> {detail.submitted_by_name}</div>
             <div><strong>Status:</strong> <window.StatusBadge status={detail.status} /></div>
             {detail.reviewed_by_name && <div><strong>Reviewed by:</strong> {detail.reviewed_by_name}</div>}
             {detail.notes && <div style={{ gridColumn:'1/-1' }}><strong>Notes:</strong> {detail.notes}</div>}
           </div>
-          <div className="table-scroll">
+          <div className="table-scroll table-scroll-medium">
           <table>
             <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
             <tbody>
@@ -387,7 +415,7 @@ function DutyHistory({ user }) {
         {rows.length === 0 ? (
           <div className="empty"><div className="icon"></div>No duty logs submitted yet</div>
         ) : (
-          <div className="table-scroll">
+          <div className="table-scroll table-scroll-compact">
           <table>
             <thead><tr><th>Duty No.</th><th>Date</th><th>Items</th><th>Total</th><th>Att.</th><th>Status</th><th></th></tr></thead>
             <tbody>
@@ -401,7 +429,7 @@ function DutyHistory({ user }) {
                     <td style={{ fontWeight:600 }}>{fmtRM(total)}</td>
                     <td>{log.attachment_count > 0 ? <span className="badge badge-green">att {log.attachment_count}</span> : '—'}</td>
                     <td><window.StatusBadge status={log.status} /></td>
-                    <td><button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>View View</button></td>
+                    <td><button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>View</button></td>
                   </tr>
                 );
               })}
@@ -413,12 +441,12 @@ function DutyHistory({ user }) {
 
       {detail && (
         <window.Modal title={`Duty Log — ${detail.duty_number}`} onClose={() => setDetail(null)}>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:10, marginBottom:16, fontSize:13 }}>
+          <div className="duty-meta-grid">
             <div><strong>Date:</strong> {detail.date}</div>
             <div><strong>Status:</strong> <window.StatusBadge status={detail.status} /></div>
             {detail.notes && <div style={{ gridColumn:'1/-1' }}><strong>Reviewer notes:</strong> {detail.notes}</div>}
           </div>
-          <div className="table-scroll">
+          <div className="table-scroll table-scroll-medium">
           <table>
             <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
             <tbody>
