@@ -380,7 +380,7 @@ window.Students = function Students({ user }) {
               <table>
               <thead>
                 <tr>
-                  <th>Name</th><th>Level</th><th>Gender</th>
+                  <th>Student</th>
                   <th>Main Contact</th>
                   <th>Fee</th><th>Hostel</th><th>Status</th><th>Login</th>
                   <th>{window.MONTHS[month-1]} {year}</th>
@@ -389,12 +389,19 @@ window.Students = function Students({ user }) {
               </thead>
               <tbody>
                 {paged.length === 0 ? (
-                  <tr><td colSpan={10}><window.StatePanel type="empty"  message="No students found" compact /></td></tr>
+                  <tr><td colSpan={8}><window.StatePanel type="empty"  message="No students found" compact /></td></tr>
                 ) : paged.map(s => (
                   <tr key={s.id}>
-                    <td><strong>{s.name}</strong></td>
-                    <td>{s.level}</td>
-                    <td style={{ textTransform:'capitalize' }}>{s.gender}</td>
+                    <td>
+                      <div className="student-identity">
+                        <strong>{s.name}</strong>
+                        <div className="student-identity-meta">
+                          <span>{s.level || '—'}</span>
+                          <span>•</span>
+                          <span style={{ textTransform:'capitalize' }}>{s.gender || '—'}</span>
+                        </div>
+                      </div>
+                    </td>
                     <td>
                       {s.main_contact_name ? (
                         <div style={{ display:'grid', gap:4 }}>
@@ -409,12 +416,14 @@ window.Students = function Students({ user }) {
                     <td><window.StatusBadge status={s.status} /></td>
                     <td>
                       {s.user_id ? (
-                        <div style={{ display:'grid', gap:4 }}>
+                        <div className="student-login-status">
                           <span className="badge badge-green">Linked</span>
-                          <small style={{ color:'var(--muted)' }}>{s.linked_username || `user#${s.user_id}`}</small>
+                          <small>{s.linked_username || `user#${s.user_id}`}</small>
                         </div>
                       ) : (
-                        <span className="badge badge-gray">Not linked</span>
+                        <div className="student-login-status">
+                          <span className="badge badge-gray">No account</span>
+                        </div>
                       )}
                     </td>
                     <td>
@@ -425,24 +434,26 @@ window.Students = function Students({ user }) {
                     </td>
                     <td>
                       <div className="action-group student-row-actions">
-                        {isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>Edit️</button>}
-                        <button className="btn btn-secondary btn-sm" onClick={() => openContacts(s)} title="Manage contacts"></button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => openHistory(s)}></button>
-                        {isAdmin && !s.user_id && s.status === 'active' && (
-                          <button className="btn btn-secondary btn-sm" onClick={() => openCreateLoginModal(s)} title="Create linked login">Create Login Account</button>
-                        )}
-                        {isAdmin && s.user_id && (
-                          <>
-                            <button className="btn btn-secondary btn-sm" onClick={() => openManageLogin(s)} title="Manage linked account">Manage Account</button>
-                            <button className="btn btn-secondary btn-sm" onClick={() => unlinkStudentLogin(s)} title="Unlink login">Unlink</button>
-                          </>
-                        )}
+                        {isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>Edit</button>}
                         {isAdmin && s.status === 'active' && (
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(s)} title="Deactivate student">⊘</button>
+                          <button
+                            className={`btn btn-sm ${s.user_id ? 'btn-secondary' : 'btn-primary'}`}
+                            onClick={() => (s.user_id ? openManageLogin(s) : openCreateLoginModal(s))}
+                            title={s.user_id ? 'Manage linked account' : 'Create linked account'}
+                          >
+                            {s.user_id ? 'Manage Account' : 'Create Account'}
+                          </button>
                         )}
-                        {isAdmin && s.status === 'inactive' && (
-                          <button className="btn btn-danger btn-sm" onClick={() => handlePermanentDelete(s)} title="Permanently delete student">Del️</button>
-                        )}
+                        <details className="row-more-menu">
+                          <summary className="btn btn-secondary btn-sm">More</summary>
+                          <div className="row-more-menu-panel">
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openContacts(s)}>Contacts</button>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openHistory(s)}>Fee History</button>
+                            {isAdmin && s.user_id && <button type="button" className="btn btn-secondary btn-sm" onClick={() => unlinkStudentLogin(s)}>Unlink Account</button>}
+                            {isAdmin && s.status === 'active' && <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeactivate(s)}>Deactivate Student</button>}
+                            {isAdmin && s.status === 'inactive' && <button type="button" className="btn btn-danger btn-sm" onClick={() => handlePermanentDelete(s)}>Delete Permanently</button>}
+                          </div>
+                        </details>
                       </div>
                     </td>
                   </tr>
@@ -544,7 +555,7 @@ window.Students = function Students({ user }) {
                     ) : (
                       <>
                         <span className="badge badge-gray">Not linked</span>
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openCreateLoginModal(modal)}>Create Login Account</button>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openCreateLoginModal(modal)}>Create Account</button>
                       </>
                     )}
                   </div>
@@ -565,24 +576,21 @@ window.Students = function Students({ user }) {
       )}
 
       {loginModalStudent && (
-        <window.Modal title="Create Login Account" onClose={() => setLoginModalStudent(null)}>
+        <window.Modal title="Create Student Login" onClose={() => setLoginModalStudent(null)}>
           <form onSubmit={submitCreateLogin}>
+            <div className="account-student-summary">
+              <div className="account-student-summary-name">{loginModalStudent.name}</div>
+              <div className="account-student-summary-meta">
+                <span>{loginModalStudent.level || '—'}</span>
+                <span>•</span>
+                <window.StatusBadge status={loginModalStudent.status} />
+              </div>
+            </div>
             <div className="form-grid">
-              <div className="form-group span2">
-                <label>Student</label>
-                <input value={`${loginModalStudent.name} (${loginModalStudent.level})`} disabled readOnly />
-              </div>
-              <div className="form-group">
-                <label>Role</label>
-                <input value="student" disabled readOnly />
-              </div>
-              <div className="form-group">
-                <label>Account Status</label>
-                <input value="Not linked" disabled readOnly />
-              </div>
               <div className="form-group span2">
                 <label>Username *</label>
                 <input value={loginForm.username} onChange={e => setLoginForm(f => ({ ...f, username: e.target.value }))} placeholder="Username" />
+                <small style={{ color:'var(--muted)' }}>Use a unique username for the student login account.</small>
                 {loginErrors.username ? <small style={{ color:'var(--red)' }}>{loginErrors.username}</small> : null}
               </div>
               <div className="form-group">
@@ -609,7 +617,7 @@ window.Students = function Students({ user }) {
             </div>
             <div className="modal-actions">
               <button type="button" className="btn btn-secondary" onClick={() => setLoginModalStudent(null)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={creatingLogin}>{creatingLogin ? 'Creating…' : 'Create Login Account'}</button>
+              <button type="submit" className="btn btn-primary" disabled={creatingLogin}>{creatingLogin ? 'Creating…' : 'Create Account'}</button>
             </div>
           </form>
         </window.Modal>
@@ -617,11 +625,15 @@ window.Students = function Students({ user }) {
 
       {manageLoginStudent && (
         <window.Modal title="Manage Linked Account" onClose={() => setManageLoginStudent(null)}>
-          <div className="form-grid">
-            <div className="form-group span2">
-              <label>Student</label>
-              <input value={`${manageLoginStudent.name} (${manageLoginStudent.level})`} disabled readOnly />
+          <div className="account-student-summary">
+            <div className="account-student-summary-name">{manageLoginStudent.name}</div>
+            <div className="account-student-summary-meta">
+              <span>{manageLoginStudent.level || '—'}</span>
+              <span>•</span>
+              <window.StatusBadge status={manageLoginStudent.status} />
             </div>
+          </div>
+          <div className="form-grid">
             <div className="form-group">
               <label>Account Status</label>
               <input value="Linked" disabled readOnly />
@@ -651,6 +663,7 @@ window.Students = function Students({ user }) {
               </div>
             </div>
             <div className="modal-actions">
+              <button type="button" className="btn btn-danger" onClick={() => unlinkStudentLogin(manageLoginStudent)}>Unlink Account</button>
               <button type="button" className="btn btn-secondary" onClick={() => setManageLoginStudent(null)}>Close</button>
               <button type="submit" className="btn btn-amber" disabled={resettingLogin}>{resettingLogin ? 'Saving…' : 'Reset Password'}</button>
             </div>

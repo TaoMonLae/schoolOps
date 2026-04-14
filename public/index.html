@@ -1343,6 +1343,69 @@
       align-items: center;
     }
     .student-row-actions > * { flex: 0 0 auto; }
+    .student-identity {
+      display: grid;
+      gap: 2px;
+      min-width: 160px;
+    }
+    .student-identity-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .student-login-status {
+      display: grid;
+      gap: 4px;
+      min-width: 100px;
+    }
+    .student-login-status small {
+      color: var(--muted);
+      font-size: 12px;
+      word-break: break-word;
+    }
+    .row-more-menu {
+      position: relative;
+    }
+    .row-more-menu > summary {
+      list-style: none;
+      cursor: pointer;
+    }
+    .row-more-menu > summary::-webkit-details-marker { display: none; }
+    .row-more-menu-panel {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      z-index: 10;
+      min-width: 180px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      box-shadow: var(--shadow-md);
+    }
+    .account-student-summary {
+      margin-bottom: 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      display: grid;
+      gap: 6px;
+    }
+    .account-student-summary-name { font-weight: 700; }
+    .account-student-summary-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
     .students-inline-stats {
       margin-top: 12px;
       font-size: 13px;
@@ -1752,6 +1815,7 @@
       .contacts-modal-head { align-items: stretch; }
       .students-inline-stats > * { border-radius: 10px; }
       .student-row-actions { justify-content: flex-start; }
+      .row-more-menu-panel { right: auto; left: 0; min-width: 170px; }
       .summary-strip { grid-template-columns: 1fr 1fr; }
       .modal-actions, .form-actions { flex-direction: column; }
       .modal-actions .btn, .form-actions .btn { width: 100%; justify-content: center; }
