@@ -195,7 +195,7 @@ window.Cashbook = function Cashbook() {
           </div>
           <div className="filters-actions">
             <button className="btn btn-secondary btn-sm" onClick={handleExportPDF}>
-              📄 Print Ledger PDF
+              Print Ledger PDF
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => { setForm(EMPTY_FORM); setErrors({}); setModal('add'); }}>
               + New Entry
@@ -219,7 +219,7 @@ window.Cashbook = function Cashbook() {
         {loading ? (
           <window.StatePanel type="loading" compact message="Loading cashbook…" />
         ) : paged.length === 0 ? (
-          <window.StatePanel icon="📒" message="No entries for this period" compact />
+          <window.StatePanel type="empty" message="No entries for this period" compact />
         ) : (
           <div style={{ overflowX:'auto' }}>
             <table>

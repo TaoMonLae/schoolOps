@@ -187,7 +187,7 @@ window.Attendance = function Attendance({ user }) {
     return r.name.toLowerCase().includes(q) || r.level.toLowerCase().includes(q) || (r.dorm_house || '').toLowerCase().includes(q) || (r.room || '').toLowerCase().includes(q);
   });
 
-  if (!isManager) return <div className="empty"><div className="icon">⛔</div>Not allowed</div>;
+  if (!isManager) return <div className="empty"><div className="icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.45}}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>Not allowed</div>;
 
   return (
     <div>
@@ -462,7 +462,7 @@ window.Attendance = function Attendance({ user }) {
 
       {summary?.repeatedAbsenceAlerts?.length > 0 && (
         <div className="card" style={{ marginTop: 16 }}>
-          <div className="card-title">⚠️ Repeated Absence Alert (Last 14 Days)</div>
+          <div className="card-title">Repeated Absence Alert (Last 14 Days)</div>
           <div className="table-scroll">
             <table>
               <thead><tr><th>Student</th><th>Level</th><th>Absences</th></tr></thead>

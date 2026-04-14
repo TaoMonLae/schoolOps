@@ -174,10 +174,10 @@ window.Ledger = function Ledger() {
   // ── Tabs ──────────────────────────────────────────────────────────────────
 
   const TABS = [
-    { k:'accounts', label:'Chart of Accounts', icon:'📊' },
-    { k:'ledger',   label:'Account Ledger',    icon:'📒' },
-    { k:'funds',    label:'Donor Funds',        icon:'🎁' },
-    { k:'closing',  label:'Monthly Closing',    icon:'🔒' },
+    { k:'accounts', label:'Chart of Accounts' },
+    { k:'ledger',   label:'Account Ledger' },
+    { k:'funds',    label:'Donor Funds' },
+    { k:'closing',  label:'Monthly Closing' },
   ];
 
   return (
@@ -187,7 +187,7 @@ window.Ledger = function Ledger() {
         {TABS.map(t => (
           <button key={t.k} className={`btn ${tab===t.k ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setTab(t.k)}>
-            {t.icon} {t.label}
+            {t.label}
           </button>
         ))}
       </div>
@@ -241,7 +241,7 @@ window.Ledger = function Ledger() {
                               <div style={{ display:'flex', gap:4 }}>
                                 <button className="btn btn-secondary btn-sm btn-icon" title="Set opening balance"
                                   onClick={() => { setObModal(a); setObForm({ balance: a.opening_balance ?? '', balance_date: a.opening_balance_date || now.toISOString().slice(0,10) }); }}>
-                                  💰
+                                  
                                 </button>
                               </div>
                             </td>
@@ -278,12 +278,12 @@ window.Ledger = function Ledger() {
                   </select>
                 </div>
                 <div className="filters-actions">
-                  <button className="btn btn-secondary btn-sm" onClick={handleLedgerPDF}>📄 Print PDF</button>
+                  <button className="btn btn-secondary btn-sm" onClick={handleLedgerPDF}>Print PDF</button>
                 </div>
               </div>
 
               {!selectedAcct ? (
-                <window.StatePanel icon="📒" message="Select an account to view its ledger" compact />
+                <window.StatePanel type="empty" message="Select an account to view its ledger" compact />
               ) : ledgerLoading ? (
                 <window.StatePanel type="loading" compact message="Loading ledger…" />
               ) : ledgerData ? (
@@ -308,7 +308,7 @@ window.Ledger = function Ledger() {
                   </div>
 
                   {ledgerData.entries.length === 0 ? (
-                    <window.StatePanel icon="📄" message="No entries for this account in the selected period" compact />
+                    <window.StatePanel type="empty" message="No entries for this account in the selected period" compact />
                   ) : (
                     <div style={{ overflowX:'auto' }}>
                       <table>
@@ -374,7 +374,7 @@ window.Ledger = function Ledger() {
               </div>
 
               {funds.length === 0 ? (
-                <window.StatePanel icon="🎁" message="No donor funds yet. Add one to track restricted grants." compact />
+                <window.StatePanel type="empty" message="No donor funds yet. Add one to track restricted grants." compact />
               ) : (
                 <div style={{ display:'grid', gap:14 }}>
                   {funds.map(f => (
@@ -408,7 +408,7 @@ window.Ledger = function Ledger() {
                           <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
                             <button className="btn btn-secondary btn-sm btn-icon" title="Edit"
                               onClick={() => { setFundForm({ name:f.name, funder_name:f.funder_name||'', description:f.description||'', is_restricted:!!f.is_restricted }); setFundModal(f); }}>
-                              ✏️
+                              Edit
                             </button>
                             <button className="btn btn-danger btn-sm btn-icon" title="Deactivate"
                               onClick={() => handleDeleteFund(f)}>✕</button>
@@ -431,14 +431,14 @@ window.Ledger = function Ledger() {
                   setClosePreview(null);
                   setClosingModal(true);
                 }}>
-                  🔒 Close a Month
+                  Close a Month
                 </button>
               </div>
 
               <div className="card">
                 <div className="card-title">Closing History</div>
                 {closings.length === 0 ? (
-                  <window.StatePanel icon="📅" message="No months have been closed yet" compact />
+                  <window.StatePanel type="empty" message="No months have been closed yet" compact />
                 ) : (
                   <table>
                     <thead>
@@ -473,7 +473,7 @@ window.Ledger = function Ledger() {
                           <td>
                             <button className="btn btn-secondary btn-sm" title="Reopen period (admin)"
                               onClick={() => handleReopenMonth(c)}>
-                              🔓 Reopen
+                              Reopen
                             </button>
                           </td>
                         </tr>
@@ -632,7 +632,7 @@ window.Ledger = function Ledger() {
                 <div style={{ margin:'14px 0', padding:'14px', background: closePreview.is_closed ? 'var(--red-light)' : 'var(--green-light)', borderRadius:8 }}>
                   {closePreview.is_closed ? (
                     <div style={{ color:'var(--red)', fontWeight:700 }}>
-                      ⚠️ {closePreview.period_label} is already closed.
+                      {closePreview.period_label} is already closed.
                     </div>
                   ) : (
                     <>
@@ -656,7 +656,7 @@ window.Ledger = function Ledger() {
               <div className="modal-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => setClosingModal(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving || closePreview?.is_closed}>
-                  {saving ? 'Closing…' : '🔒 Close Period'}
+                  {saving ? 'Closing…' : 'Close Period'}
                 </button>
               </div>
             </form>
