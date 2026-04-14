@@ -69,21 +69,21 @@ window.Dashboard = function Dashboard({ user, setPage }) {
 
   const quickActions = role === 'student'
     ? [
-        { icon: '✍️', title: 'Submit duty log', copy: 'Start the main task immediately.', meta: 'Fastest way to get work recorded', target: 'duty_submit' },
-        { icon: '📜', title: 'Check my history', copy: 'See what was approved, flagged, or still pending.', meta: `${reminders.length} recent reminder(s)`, target: 'duty_history' },
+        { title: 'Submit duty log', copy: 'Start the main task immediately.', meta: 'Fastest way to get work recorded', target: 'duty_submit' },
+        { title: 'Check my history', copy: 'See what was approved, flagged, or still pending.', meta: `${reminders.length} recent reminder(s)`, target: 'duty_history' },
       ]
     : role === 'teacher'
       ? [
-          { icon: '🛏️', title: 'Take attendance', copy: 'Go straight to the daily roll call and save today\'s record.', meta: `${attendanceTotals.not_marked_count || 0} not yet marked`, target: 'attendance' },
-          { icon: '📋', title: 'Review duty queue', copy: 'Open submitted logs and clear pending approvals.', meta: `${reminders.length} unread reminder(s)`, target: 'duty' },
-          { icon: '💰', title: 'Check fee status', copy: 'See unpaid students and overdue balances.', meta: `${data.unpaidThisMonth} unpaid this month`, target: 'fees' },
-          { icon: '📈', title: 'Open reports', copy: 'Generate monthly exports and summaries.', meta: `${window.MONTHS[month-1]} ${year}`, target: 'reports' },
+          { title: 'Take attendance', copy: 'Go straight to the daily roll call and save today\'s record.', meta: `${attendanceTotals.not_marked_count || 0} not yet marked`, target: 'attendance' },
+          { title: 'Review duty queue', copy: 'Open submitted logs and clear pending approvals.', meta: `${reminders.length} unread reminder(s)`, target: 'duty' },
+          { title: 'Check fee status', copy: 'See unpaid students and overdue balances.', meta: `${data.unpaidThisMonth} unpaid this month`, target: 'fees' },
+          { title: 'Open reports', copy: 'Generate monthly exports and summaries.', meta: `${window.MONTHS[month-1]} ${year}`, target: 'reports' },
         ]
       : [
-          { icon: '👥', title: 'Manage roster', copy: 'Enroll, update, or review active students.', meta: `${data.totalActive} active students`, target: 'students' },
-          { icon: '💰', title: 'Follow up fees', copy: 'See unpaid students and current outstanding totals.', meta: `${data.unpaidThisMonth} unpaid this month`, target: 'fees' },
-          { icon: '🛏️', title: 'Take attendance', copy: 'Record today\'s attendance and hostel status.', meta: `${attendanceTotals.not_marked_count || 0} not marked yet`, target: 'attendance' },
-          { icon: '📦', title: 'Low stock items', copy: 'Check inventory that may need replenishment soon.', meta: `${inventoryData.lowStock.length} low-stock alert(s)`, target: 'inventory' },
+          { title: 'Manage roster', copy: 'Enroll, update, or review active students.', meta: `${data.totalActive} active students`, target: 'students' },
+          { title: 'Follow up fees', copy: 'See unpaid students and current outstanding totals.', meta: `${data.unpaidThisMonth} unpaid this month`, target: 'fees' },
+          { title: 'Take attendance', copy: 'Record today\'s attendance and hostel status.', meta: `${attendanceTotals.not_marked_count || 0} not marked yet`, target: 'attendance' },
+          { title: 'Low stock items', copy: 'Check inventory that may need replenishment soon.', meta: `${inventoryData.lowStock.length} low-stock alert(s)`, target: 'inventory' },
         ];
 
   return (
@@ -104,10 +104,10 @@ window.Dashboard = function Dashboard({ user, setPage }) {
               <div className="hero-pill"><span>Priority</span><strong>{biggestRisk}</strong></div>
             </div>
             <div className="hero-actions">
-              <button className="btn btn-primary" onClick={load}>🔄 Refresh numbers</button>
-              {role !== 'student' && <button className="btn btn-secondary" onClick={() => setPage('attendance')}>🛏️ Attendance</button>}
+              <button className="btn btn-primary" onClick={load}>Refresh numbers</button>
+              {role !== 'student' && <button className="btn btn-secondary" onClick={() => setPage('attendance')}>Attendance</button>}
               <button className="btn btn-secondary" onClick={() => setPage(role === 'student' ? 'duty_submit' : 'fees')}>
-                {role === 'student' ? '✍️ Submit duty log' : '💰 Fee follow-up'}
+                {role === 'student' ? 'Submit duty log' : 'Fee follow-up'}
               </button>
             </div>
           </div>
@@ -174,7 +174,6 @@ window.Dashboard = function Dashboard({ user, setPage }) {
       <div className="quick-grid">
         {quickActions.map((action) => (
           <button key={action.title} className="quick-card" type="button" onClick={() => setPage(action.target)}>
-            <div style={{ fontSize: 24 }}>{action.icon}</div>
             <div className="quick-card-title">{action.title}</div>
             <div className="quick-card-copy">{action.copy}</div>
             <div className="quick-card-meta">{action.meta}</div>
@@ -192,7 +191,7 @@ window.Dashboard = function Dashboard({ user, setPage }) {
           </select>
         </div>
         <div className="filters-actions">
-          <button className="btn btn-secondary btn-sm" onClick={load}>🔄 Refresh</button>
+          <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
         </div>
       </div>
 
@@ -250,7 +249,7 @@ window.Dashboard = function Dashboard({ user, setPage }) {
       </div>
 
       <div className="card">
-        <div className="card-title">🔔 Reminder Cards</div>
+        <div className="card-title">Reminder Cards</div>
         {reminders.length === 0 ? (
           <div style={{ color: 'var(--muted)' }}>No unread reminders.</div>
         ) : (
@@ -269,7 +268,7 @@ window.Dashboard = function Dashboard({ user, setPage }) {
         <div className="section-stack">
           <div className="card table-card">
             <div className="card-head">
-              <div className="card-title">🧍 Absent Students Today</div>
+              <div className="card-title">Absent Students Today</div>
               {attendance?.absentStudents?.length ? <button className="btn btn-secondary btn-sm" onClick={() => setPage('attendance')}>Open attendance</button> : null}
             </div>
             {!attendance?.absentStudents?.length ? (
@@ -300,7 +299,7 @@ window.Dashboard = function Dashboard({ user, setPage }) {
             </div>
             {data.outstanding.length === 0 ? (
               <div className="empty" style={{ padding: 24 }}>
-                <div className="icon">✅</div>All students have paid!
+                <div className="icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.45}}><polyline points="20 6 9 17 4 12"/></svg></div>All students have paid!
               </div>
             ) : (
               <div className="table-scroll">
@@ -321,7 +320,7 @@ window.Dashboard = function Dashboard({ user, setPage }) {
 
           <div className="card table-card">
             <div className="card-head">
-              <div className="card-title">🕘 Latest Stock Movements</div>
+              <div className="card-title">Latest Stock Movements</div>
               <button className="btn btn-secondary btn-sm" onClick={() => setPage('inventory')}>Open inventory</button>
             </div>
             {inventoryData.latestMovements.length === 0 ? <div style={{ color:'var(--muted)', padding: '0 18px 18px' }}>No stock movements yet.</div> : (
@@ -347,7 +346,7 @@ window.Dashboard = function Dashboard({ user, setPage }) {
             </div>
             {data.topOverdueStudents.length === 0 ? (
               <div className="empty" style={{ padding: 24 }}>
-                <div className="icon">✅</div>No arrears for this period
+                <div className="icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.45}}><polyline points="20 6 9 17 4 12"/></svg></div>No arrears for this period
               </div>
             ) : (
               <div className="table-scroll">
@@ -375,7 +374,7 @@ window.Dashboard = function Dashboard({ user, setPage }) {
 
           <div className="card table-card">
             <div className="card-head">
-              <div className="card-title">📦 Low Stock Items</div>
+              <div className="card-title">Low Stock Items</div>
               <button className="btn btn-secondary btn-sm" onClick={() => setPage('inventory')}>Go to inventory</button>
             </div>
             {inventoryData.lowStock.length === 0 ? <div style={{ color:'var(--muted)', padding: '0 18px 18px' }}>No low stock alerts.</div> : (

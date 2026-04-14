@@ -73,7 +73,10 @@ window.NotificationsBell = function NotificationsBell({ user }) {
   return (
     <div className="notification-wrap">
       <button className="notification-bell" onClick={() => setOpen((v) => !v)} title="Notifications">
-        🔔
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{display:'block'}}>
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
         {unread > 0 && <span className="notification-pill">{unread > 99 ? '99+' : unread}</span>}
       </button>
 
@@ -112,7 +115,12 @@ window.NotificationsBell = function NotificationsBell({ user }) {
             <div style={{ color: 'var(--muted)', padding: '10px 4px' }}>Loading…</div>
           ) : rows.length === 0 ? (
             <div className="empty" style={{ padding: 18 }}>
-              <div className="icon">✅</div>No notifications
+              <div className="icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.45}}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+              No notifications
             </div>
           ) : (
             <div className="notification-list">

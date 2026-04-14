@@ -154,7 +154,7 @@ window.Reports = function Reports() {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
           <div className="card">
-            <div className="card-title" style={{ color: 'var(--green)' }}>📥 INCOME</div>
+            <div className="card-title" style={{ color: 'var(--green)' }}>INCOME</div>
             <table>
               <tbody>
                 <tr><td>Fee Payments Collected</td><td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--green)' }}>{fmtCurrency(data.feeIncome, currency)}</td></tr>
@@ -173,7 +173,7 @@ window.Reports = function Reports() {
           </div>
 
           <div className="card">
-            <div className="card-title" style={{ color: 'var(--amber)' }}>📤 EXPENSES</div>
+            <div className="card-title" style={{ color: 'var(--amber)' }}>EXPENSES</div>
             <table>
               <tbody>
                 <tr><td>Daily Duty (Cooking/Cleaning)</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtCurrency(data.dutyTotal, currency)}</td></tr>
@@ -201,7 +201,7 @@ window.Reports = function Reports() {
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card-title">Appendix A — Duty Logs (Approved)</div>
           {data.dutyLogs.length === 0 ? (
-            <div className="empty" style={{ padding: 24 }}><div className="icon">📋</div>No approved duty logs</div>
+            <div className="empty" style={{ padding: 24 }}><div className="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.45}}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></div>No approved duty logs</div>
           ) : (
             <table>
               <thead><tr><th>Duty No.</th><th>Date</th><th>Submitted By</th><th>Att.</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
@@ -224,7 +224,7 @@ window.Reports = function Reports() {
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card-title">Appendix B — Fee Payments</div>
           {data.fees.length === 0 ? (
-            <div className="empty" style={{ padding: 24 }}><div className="icon">💳</div>No payments recorded</div>
+            <div className="empty" style={{ padding: 24 }}><div className="icon"></div>No payments recorded</div>
           ) : (
             <table>
               <thead><tr><th>Student</th><th>Amount</th><th>Paid Date</th><th>Method</th></tr></thead>
@@ -246,7 +246,7 @@ window.Reports = function Reports() {
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card-title">Appendix C — Expenditure List</div>
           {data.expenditures.length === 0 ? (
-            <div className="empty" style={{ padding: 24 }}><div className="icon">🧾</div>No expenditures recorded</div>
+            <div className="empty" style={{ padding: 24 }}><div className="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.45}}><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/></svg></div>No expenditures recorded</div>
           ) : (
             <table>
               <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Att.</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead>
@@ -473,14 +473,14 @@ window.Reports = function Reports() {
           </select>
         )}
 
-        <button className="btn btn-secondary btn-sm" onClick={load}>🔄 Refresh</button>
+        <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
         <div style={{ flex: 1 }} />
 
         <button className="btn btn-primary" onClick={() => handleExport('excel')} disabled={!!exporting || !data}>
-          {exporting === 'excel' ? 'Exporting…' : '📊 Export Excel'}
+          {exporting === 'excel' ? 'Exporting…' : 'Export Excel'}
         </button>
         <button className="btn btn-secondary" onClick={() => handleExport('contacts')} disabled={!!exporting}>
-          {exporting === 'contacts' ? 'Exporting…' : '👪 Export Student Contacts'}
+          {exporting === 'contacts' ? 'Exporting…' : 'Export Student Contacts'}
         </button>
 
         <button
@@ -489,12 +489,12 @@ window.Reports = function Reports() {
           onClick={() => handleExport('pdf')}
           disabled={!!exporting || !data}
         >
-          {exporting === 'pdf' ? 'Exporting…' : '📄 Export PDF'}
+          {exporting === 'pdf' ? 'Exporting…' : 'Export PDF'}
         </button>
       </div>
 
       {loading && <div className="empty"><div className="icon">⏳</div>Loading report…</div>}
-      {!loading && !data && <div className="empty"><div className="icon">📊</div>No data</div>}
+      {!loading && !data && <div className="empty"><div className="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.45}}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>No data</div>}
 
       {data && !loading && mode === 'monthly' && renderMonthly()}
       {data && !loading && mode === 'yearly' && renderYearly()}

@@ -140,15 +140,15 @@ window.Fees = function Fees({ user }) {
   return (
     <div>
       <div className="filters">
-        <input className="students-search" placeholder="🔍 Search student or level…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        <input className="students-search" placeholder="Search student or level…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         <select className="students-period-month" value={month} onChange={e => { setMonth(+e.target.value); setPage(1); }}>
           {window.MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
         </select>
         <select className="students-period-year" value={year} onChange={e => { setYear(+e.target.value); setPage(1); }}>
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
-        <button className="btn btn-secondary btn-sm" onClick={load}>🔄</button>
-        <button className="btn btn-secondary btn-sm" onClick={exportUnpaid}>⬇️ Export Unpaid</button>
+        <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
+        <button className="btn btn-secondary btn-sm" onClick={exportUnpaid}>Exportxport Unpaid</button>
         <div className="filters-spacer" />
         <div className="filters-total">Total: {fmtRM(total)}</div>
         <button className="btn btn-primary" onClick={() => { setForm(EMPTY_FORM); setModal(true); }}>+ Record Payment</button>
@@ -178,7 +178,7 @@ window.Fees = function Fees({ user }) {
               <thead><tr><th>Student</th><th>Level</th><th>Fee</th><th>Status</th><th>Overdue Months</th><th>Outstanding</th><th>Last Paid</th><th></th></tr></thead>
               <tbody>
                 {filteredStudents.length === 0 ? (
-                  <tr><td colSpan={8}><div className="empty"><div className="icon">💰</div>No students found</div></td></tr>
+                  <tr><td colSpan={8}><div className="empty"><div className="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.45}}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>No students found</div></td></tr>
                 ) : filteredStudents.map(s => (
                   <tr key={s.id}>
                     <td><strong>{s.name}</strong></td>
@@ -193,7 +193,7 @@ window.Fees = function Fees({ user }) {
                     <td>{s.last_paid_month ? `${window.MONTHS[s.last_paid_month-1]} ${s.last_paid_year}` : '—'}</td>
                     <td>
                       <button className="btn btn-secondary btn-sm" onClick={() => downloadFeeSlip(s.id, s.name)}>
-                        🖨️ Print Unpaid Slip
+                        Print Unpaid Slip
                       </button>
                     </td>
                   </tr>
@@ -212,7 +212,7 @@ window.Fees = function Fees({ user }) {
                 <thead><tr><th>Student</th><th>Amount</th><th>Period</th><th>Paid Date</th><th>Method</th><th>Received By</th><th>Notes</th><th></th></tr></thead>
                 <tbody>
                   {paged.length === 0 ? (
-                    <tr><td colSpan={8}><div className="empty"><div className="icon">💳</div>No payments found</div></td></tr>
+                    <tr><td colSpan={8}><div className="empty"><div className="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.45}}><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>No payments found</div></td></tr>
                   ) : paged.map(p => (
                     <tr key={p.id}>
                       <td><strong>{p.student_name}</strong></td>
@@ -309,7 +309,7 @@ window.Fees = function Fees({ user }) {
                 <div className="form-group span2"><label>Notes</label><input value={activePayment.notes || '—'} readOnly /></div>
               </div>
               <div className="modal-actions">
-                <button className="btn btn-secondary" onClick={() => downloadReceipt(activePayment)}>🧾 Download Receipt PDF</button>
+                <button className="btn btn-secondary" onClick={() => downloadReceipt(activePayment)}> Download Receipt PDF</button>
                 <button className="btn btn-secondary" onClick={() => downloadReceipt(activePayment, true)}>♻️ Duplicate Copy</button>
                 <button className="btn btn-primary" onClick={() => setPaymentModal(false)}>Close</button>
               </div>

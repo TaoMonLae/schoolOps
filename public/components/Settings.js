@@ -150,7 +150,7 @@ window.Settings = function Settings({ mode = 'settings', onSaved }) {
                   {form.logo_url ? (
                     <img src={form.logo_url} alt="School logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
-                    <span style={{ fontSize: 38 }}>📚</span>
+                    <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{color:"var(--brand-dark)"}}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -213,8 +213,8 @@ window.Settings = function Settings({ mode = 'settings', onSaved }) {
         <div style={{ marginBottom: 10 }}><strong>Backup directory:</strong> <code>{status?.backup_dir}</code></div>
         <div style={{ marginBottom: 10 }}><strong>Last backup:</strong> {status?.last_backup_at || 'Not tracked yet'}</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button className="btn btn-secondary" onClick={runDownloadBackup}>⬇️ Download DB Backup</button>
-          <button className="btn btn-primary" onClick={runCreateBackup} disabled={runningBackup}>{runningBackup ? 'Creating…' : '🧷 Create Backup Now'}</button>
+          <button className="btn btn-secondary" onClick={runDownloadBackup}>Downloadownload DB Backup</button>
+          <button className="btn btn-primary" onClick={runCreateBackup} disabled={runningBackup}>{runningBackup ? 'Creating…' : ' Create Backup Now'}</button>
         </div>
         {backupInfo?.instructions?.length > 0 && (
           <div style={{ marginTop: 14, fontSize: 13, color: 'var(--mid)' }}>

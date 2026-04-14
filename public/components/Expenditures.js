@@ -146,7 +146,7 @@ window.Expenditures = function Expenditures() {
 
       {/* Toolbar */}
       <window.FilterBar actions={<button className="btn btn-primary" onClick={openAdd}>+ Add Expenditure</button>}>
-        <input className="students-search" placeholder="🔍 Search description…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        <input className="students-search" placeholder="Search description…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         <select value={catFilter} onChange={e => { setCatFilter(e.target.value); setPage(1); }}>
           <option value="">All Categories</option>
           {CATEGORIES.map(c => <option key={c} value={c}>{catLabel[c]}</option>)}
@@ -157,7 +157,7 @@ window.Expenditures = function Expenditures() {
         <select className="students-period-year" value={year} onChange={e => { setYear(+e.target.value); setPage(1); }}>
           {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
-        <button className="btn btn-secondary btn-sm" onClick={load}>🔄</button>
+        <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
       </window.FilterBar>
 
       <div className="card" style={{ padding:0 }}>
@@ -170,7 +170,7 @@ window.Expenditures = function Expenditures() {
                 </thead>
                 <tbody>
                   {paged.length === 0 ? (
-                    <tr><td colSpan={9}><window.StatePanel type="empty" icon="🧾" message="No expenditures found" compact /></td></tr>
+                    <tr><td colSpan={9}><window.StatePanel type="empty"  message="No expenditures found" compact /></td></tr>
                   ) : paged.map(r => (
                     <tr key={r.id}>
                       <td>{r.expense_date}</td>
@@ -179,12 +179,12 @@ window.Expenditures = function Expenditures() {
                       <td style={{ textAlign:'right', fontWeight:600, color:'var(--amber)' }}>{fmtRM(r.amount)}</td>
                       <td>{r.stock_item_name ? <span className='badge badge-green'>{r.stock_item_name} ({r.stock_quantity || 0} {r.stock_item_unit || ''})</span> : '—'}</td>
                       <td style={{ color:'var(--muted)', fontSize:12 }}>{r.receipt_ref || '—'}</td>
-                      <td>{r.attachment_count > 0 ? <span className="badge badge-green">📎 {r.attachment_count}</span> : '—'}</td>
+                      <td>{r.attachment_count > 0 ? <span className="badge badge-green">att {r.attachment_count}</span> : '—'}</td>
                       <td>{r.added_by_name || '—'}</td>
                       <td>
                         <div className="table-row-actions">
-                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(r)}>✏️</button>
-                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r)}>🗑</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => openEdit(r)}>Edit</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handleDelete(r)}>Del</button>
                         </div>
                       </td>
                     </tr>
@@ -266,7 +266,7 @@ window.Expenditures = function Expenditures() {
                         </div>
                         <div style={{ display:'flex', gap:6 }}>
                           <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadWithAuth(`/api/attachments/expenditure/${modal.id}/${att.id}/download`, att.original_name)}>⬇</button>
-                          <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteAttachment(modal.id, att)}>🗑</button>
+                          <button type="button" className="btn btn-danger btn-sm" onClick={() => handleDeleteAttachment(modal.id, att)}>Del</button>
                         </div>
                       </div>
                     ))}

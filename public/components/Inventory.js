@@ -142,8 +142,8 @@ window.Inventory = function Inventory() {
   return (
     <div>
       <window.FilterBar actions={<button className="btn btn-primary" onClick={openAdd}>+ Add Item</button>}>
-        <input style={{ width: 240 }} placeholder="🔍 Search items or category" value={search} onChange={e => setSearch(e.target.value)} />
-        <button className="btn btn-secondary btn-sm" onClick={load}>🔄</button>
+        <input style={{ width: 240 }} placeholder="Search items or category" value={search} onChange={e => setSearch(e.target.value)} />
+        <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
       </window.FilterBar>
 
       <div className="stat-grid" style={{ marginBottom: 14 }}>
@@ -158,14 +158,14 @@ window.Inventory = function Inventory() {
             <table>
               <thead><tr><th>Item</th><th>Category</th><th>Stock</th><th>Reorder</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody>
-                {filtered.length === 0 ? <tr><td colSpan={6}><window.StatePanel type="empty" icon="📦" message="No items found" compact /></td></tr> : filtered.map(i => (
+                {filtered.length === 0 ? <tr><td colSpan={6}><window.StatePanel type="empty"  message="No items found" compact /></td></tr> : filtered.map(i => (
                   <tr key={i.id}>
                     <td><strong>{i.name}</strong><div style={{ color:'var(--muted)', fontSize: 12 }}>{i.notes || '—'}</div></td>
                     <td>{i.category_name || 'Uncategorized'}</td>
                     <td style={{ color: Number(i.current_stock) <= Number(i.reorder_level) ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>{i.current_stock} {i.unit}</td>
                     <td>{i.reorder_level} {i.unit}</td>
                     <td><window.StatusBadge status={i.is_active ? 'active' : 'inactive'} /></td>
-                    <td><div style={{ display:'flex', gap:6 }}><button className="btn btn-secondary btn-sm" onClick={() => openEdit(i)}>✏️</button><button className="btn btn-amber btn-sm" onClick={() => openAdjust(i)}>±</button></div></td>
+                    <td><div style={{ display:'flex', gap:6 }}><button className="btn btn-secondary btn-sm" onClick={() => openEdit(i)}>Edit️</button><button className="btn btn-amber btn-sm" onClick={() => openAdjust(i)}>±</button></div></td>
                   </tr>
                 ))}
               </tbody>
@@ -175,7 +175,7 @@ window.Inventory = function Inventory() {
 
         <div className="section-stack" style={{ minWidth: 0 }}>
           <div className="card">
-            <div className="card-title">⚠️ Low Stock Warning</div>
+            <div className="card-title">Low Stock Warning</div>
             {lowStock.length === 0 ? <div style={{ color:'var(--muted)' }}>No low-stock items.</div> : (
               <div style={{ display:'grid', gap: 8 }}>
                 {lowStock.map(i => <div key={i.id} style={{ border:'1px solid var(--border)', borderRadius:8, padding:'8px 10px' }}><strong>{i.name}</strong><div style={{ fontSize:12, color:'var(--red)' }}>{i.current_stock} / reorder {i.reorder_level} {i.unit}</div></div>)}
@@ -183,7 +183,7 @@ window.Inventory = function Inventory() {
             )}
           </div>
           <div className="card">
-            <div className="card-title">🕘 Stock Movement History</div>
+            <div className="card-title">Stock Movement History</div>
             {movements.length === 0 ? <div style={{ color:'var(--muted)' }}>No movements yet.</div> : (
               <div style={{ display:'grid', gap:8, maxHeight:340, overflowY:'auto' }}>
                 {movements.slice(0, 20).map(m => (

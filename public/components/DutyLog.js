@@ -90,14 +90,14 @@ function DutySubmit({ user }) {
     <div>
       {submitted && (
         <div style={{ background:'var(--green-light)', border:'1px solid var(--green)', borderRadius:8, padding:'14px 18px', marginBottom:16, color:'var(--green)', fontWeight:600 }}>
-          ✅ Duty log <strong>{submitted.duty_number}</strong> submitted — Total: {fmtRM(submitted.grandTotal)}
+          Duty log <strong>{submitted.duty_number}</strong> submitted — Total: {fmtRM(submitted.grandTotal)}
           {submitted.attachmentUploaded && <span> (with attachment)</span>}
           <button className="btn btn-secondary btn-sm" style={{ marginLeft:12 }} onClick={() => setSubmitted(null)}>Submit another</button>
         </div>
       )}
 
       <div className="info-banner">
-        <div className="icon">🧭</div>
+        <div className="icon"></div>
         <div>
           <strong>What to do here</strong>
           <div className="muted" style={{ marginTop: 4 }}>
@@ -183,7 +183,7 @@ function DutySubmit({ user }) {
                 </div>
               </div>
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Submitting…' : '📤 Submit Duty Log'}
+                {saving ? 'Submitting…' : 'Submit Duty Log'}
               </button>
             </div>
           </form>
@@ -267,7 +267,7 @@ function DutyReview({ user }) {
           <option value="flagged">Flagged</option>
           <option value="all">All</option>
         </select>
-        <button className="btn btn-secondary btn-sm" onClick={load}>🔄</button>
+        <button className="btn btn-secondary btn-sm" onClick={load}>Refresh</button>
         <span style={{ marginLeft:'auto', fontSize:13, color:'var(--mid)' }}>{rows.length} log(s)</span>
       </div>
 
@@ -280,7 +280,7 @@ function DutyReview({ user }) {
               </thead>
               <tbody>
                 {paged.length === 0 ? (
-                  <tr><td colSpan={8}><div className="empty"><div className="icon">📋</div>No duty logs found</div></td></tr>
+                  <tr><td colSpan={8}><div className="empty"><div className="icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{opacity:.45}}><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg></div>No duty logs found</div></td></tr>
                 ) : paged.map(log => {
                   const total = (log.items || []).reduce((s, i) => s + i.total_price, 0);
                   return (
@@ -290,11 +290,11 @@ function DutyReview({ user }) {
                       <td>{log.submitted_by_name}</td>
                       <td>{(log.items||[]).length} item(s)</td>
                       <td style={{ fontWeight:600 }}>{fmtRM(total)}</td>
-                      <td>{log.attachment_count > 0 ? <span className="badge badge-green">📎 {log.attachment_count}</span> : '—'}</td>
+                      <td>{log.attachment_count > 0 ? <span className="badge badge-green">att {log.attachment_count}</span> : '—'}</td>
                       <td><window.StatusBadge status={log.status} /></td>
                       <td>
                         <div style={{ display:'flex', gap:6 }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>👁 View</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>View View</button>
                           {log.status === 'pending' && <>
                             <button className="btn btn-primary btn-sm" onClick={() => handleStatus(log.id, 'approved')}>✓ Approve</button>
                             <button className="btn btn-amber btn-sm" onClick={() => {
@@ -381,7 +381,7 @@ function DutyHistory({ user }) {
     <div>
       <div className="card" style={{ padding:0 }}>
         {rows.length === 0 ? (
-          <div className="empty"><div className="icon">📜</div>No duty logs submitted yet</div>
+          <div className="empty"><div className="icon"></div>No duty logs submitted yet</div>
         ) : (
           <table>
             <thead><tr><th>Duty No.</th><th>Date</th><th>Items</th><th>Total</th><th>Att.</th><th>Status</th><th></th></tr></thead>
@@ -394,9 +394,9 @@ function DutyHistory({ user }) {
                     <td>{log.date}</td>
                     <td>{(log.items||[]).length}</td>
                     <td style={{ fontWeight:600 }}>{fmtRM(total)}</td>
-                    <td>{log.attachment_count > 0 ? <span className="badge badge-green">📎 {log.attachment_count}</span> : '—'}</td>
+                    <td>{log.attachment_count > 0 ? <span className="badge badge-green">att {log.attachment_count}</span> : '—'}</td>
                     <td><window.StatusBadge status={log.status} /></td>
-                    <td><button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>👁 View</button></td>
+                    <td><button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>View View</button></td>
                   </tr>
                 );
               })}
@@ -491,7 +491,7 @@ function DutyAttachments({ entityId, canManage }) {
               </div>
               <div style={{ display:'flex', gap:6 }}>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => downloadWithAuth(`/api/attachments/duty_log/${entityId}/${att.id}/download`, att.original_name)}>⬇</button>
-                {canManage && <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(att)}>🗑</button>}
+                {canManage && <button type="button" className="btn btn-danger btn-sm" onClick={() => remove(att)}>Del</button>}
               </div>
             </div>
           ))}

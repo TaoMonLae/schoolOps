@@ -234,18 +234,18 @@ window.Students = function Students({ user }) {
     <div>
       <window.FilterBar actions={isAdmin ? (
         <div className="action-group students-toolbar-actions">
-          <button className="btn btn-secondary" onClick={handleDownloadTemplate} title="Download import template">📋 Template</button>
+          <button className="btn btn-secondary" onClick={handleDownloadTemplate} title="Download import template">Template</button>
           <button className="btn btn-secondary" onClick={handleImportClick} disabled={importing} title="Import students from Excel">
-            {importing ? 'Importing…' : '📥 Import'}
+            {importing ? 'Importing…' : 'Import'}
           </button>
           <button className="btn btn-secondary" onClick={handleExport} disabled={exporting} title="Export students to Excel">
-            {exporting ? 'Exporting…' : '📤 Export'}
+            {exporting ? 'Exporting…' : 'Export'}
           </button>
           <button className="btn btn-primary" onClick={openAdd}>+ Enroll Student</button>
           <input ref={importFileRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={handleImportFile} />
         </div>
       ) : null}>
-        <input className="students-search" placeholder="🔍 Search student/contact/phone…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
+        <input className="students-search" placeholder="Search student/contact/phone…" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} />
         <select value={filter} onChange={e => { setFilter(e.target.value); setPage(1); }}>
           <option value="all">All Students</option>
           <option value="active">Active</option>
@@ -277,7 +277,7 @@ window.Students = function Students({ user }) {
               </thead>
               <tbody>
                 {paged.length === 0 ? (
-                  <tr><td colSpan={9}><window.StatePanel type="empty" icon="👥" message="No students found" compact /></td></tr>
+                  <tr><td colSpan={9}><window.StatePanel type="empty"  message="No students found" compact /></td></tr>
                 ) : paged.map(s => (
                   <tr key={s.id}>
                     <td><strong>{s.name}</strong></td>
@@ -303,14 +303,14 @@ window.Students = function Students({ user }) {
                     </td>
                     <td>
                       <div className="action-group student-row-actions">
-                        {isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>✏️</button>}
-                        <button className="btn btn-secondary btn-sm" onClick={() => openContacts(s)} title="Manage contacts">📇</button>
-                        <button className="btn btn-secondary btn-sm" onClick={() => openHistory(s)}>💳</button>
+                        {isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>Edit️</button>}
+                        <button className="btn btn-secondary btn-sm" onClick={() => openContacts(s)} title="Manage contacts"></button>
+                        <button className="btn btn-secondary btn-sm" onClick={() => openHistory(s)}></button>
                         {isAdmin && s.status === 'active' && (
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(s)} title="Deactivate student">⊘</button>
                         )}
                         {isAdmin && s.status === 'inactive' && (
-                          <button className="btn btn-danger btn-sm" onClick={() => handlePermanentDelete(s)} title="Permanently delete student">🗑️</button>
+                          <button className="btn btn-danger btn-sm" onClick={() => handlePermanentDelete(s)} title="Permanently delete student">Del️</button>
                         )}
                       </div>
                     </td>
@@ -424,7 +424,7 @@ window.Students = function Students({ user }) {
           </div>
 
           {contacts.length === 0 ? (
-            <div className="empty"><div className="icon">📇</div>No contacts yet</div>
+            <div className="empty"><div className="icon"></div>No contacts yet</div>
           ) : (
             <div className="table-scroll">
               <table>
@@ -443,12 +443,12 @@ window.Students = function Students({ user }) {
                         <a href={`https://wa.me/${formatPhoneHref(c.whatsapp)}`} target="_blank" rel="noreferrer" style={{ fontSize:12 }}>WhatsApp</a>
                       )}
                     </td>
-                    <td>{c.preferred_contact ? '⭐ Preferred ' : ''}{c.emergency_contact ? '🚨 Emergency' : '—'}</td>
+                    <td>{c.preferred_contact ? 'Preferred ' : ''}{c.emergency_contact ? 'Emergency:  Emergency' : '—'}</td>
                     <td><window.StatusBadge status={c.is_active ? 'active' : 'inactive'} /></td>
                     <td>
                       <div className="action-group student-row-actions">
-                        {c.phone && <a className="btn btn-secondary btn-sm" href={`tel:${formatPhoneHref(c.phone)}`}>📞</a>}
-                        {isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => startEditContact(c)}>✏️</button>}
+                        {c.phone && <a className="btn btn-secondary btn-sm" href={`tel:${formatPhoneHref(c.phone)}`}></a>}
+                        {isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => startEditContact(c)}>Edit️</button>}
                         {isAdmin && c.is_active && <button className="btn btn-danger btn-sm" onClick={() => deactivateContact(c)}>⊘</button>}
                       </div>
                     </td>
@@ -485,7 +485,7 @@ window.Students = function Students({ user }) {
       {history && (
         <window.Modal title={`Fee History — ${history.student.name}`} onClose={() => setHistory(null)} size="lg">
           {history.payments.length === 0 ? (
-            <div className="empty"><div className="icon">💳</div>No payment records</div>
+            <div className="empty"><div className="icon"></div>No payment records</div>
           ) : (
             <div className="table-scroll">
               <table>
@@ -541,7 +541,7 @@ window.Students = function Students({ user }) {
           )}
 
           <div style={{ marginTop:16, padding:'10px 12px', background:'var(--surface)', borderRadius:6, fontSize:12, color:'var(--muted)' }}>
-            <strong>Tip:</strong> Download the <button className="btn btn-secondary btn-sm" style={{ marginLeft:6 }} onClick={() => { setImportResult(null); handleDownloadTemplate(); }}>📋 Template</button> to see the correct column format.
+            <strong>Tip:</strong> Download the <button className="btn btn-secondary btn-sm" style={{ marginLeft:6 }} onClick={() => { setImportResult(null); handleDownloadTemplate(); }}>Template</button> to see the correct column format.
           </div>
 
           <div className="modal-actions">
