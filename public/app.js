@@ -53,6 +53,10 @@ function NavIcon({ name, size = 16 }) {
       return <svg {...p}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>;
     case 'book':
       return <svg {...p}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>;
+    case 'moon':
+      return <svg {...p}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>;
+    case 'sun':
+      return <svg {...p}><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>;
     default:
       return null;
   }
@@ -166,6 +170,13 @@ function AuthProvider({ children }) {
     contact_block: '',
     theme: 'classic',
   });
+  const [themeOverride, setThemeOverride] = useState(() => {
+    try {
+      return localStorage.getItem('schoolops_theme_override') || '';
+    } catch (_) {
+      return '';
+    }
+  });
 
   const refreshUser = useCallback(async () => {
     const me = await api('/api/auth/me');
@@ -189,9 +200,20 @@ function AuthProvider({ children }) {
   }, [refreshUser, refreshSettings]);
 
   useEffect(() => {
-    const activeTheme = settings.theme === 'dark_mode' ? 'night_study' : (settings.theme || 'classic');
+    const baseTheme = settings.theme === 'dark_mode' ? 'night_study' : (settings.theme || 'classic');
+    const activeTheme = themeOverride || baseTheme;
     document.documentElement.setAttribute('data-theme', activeTheme);
-  }, [settings.theme]);
+  }, [settings.theme, themeOverride]);
+
+  const setThemeMode = useCallback((mode) => {
+    const next = mode === 'dark' ? 'night_study' : 'classic';
+    setThemeOverride(next);
+    try {
+      localStorage.setItem('schoolops_theme_override', next);
+    } catch (_) {}
+  }, []);
+
+  const activeThemeMode = (themeOverride || (settings.theme === 'dark_mode' ? 'night_study' : settings.theme || 'classic')) === 'night_study' ? 'dark' : 'light';
 
   const login = useCallback(async (username, password) => {
     const u = await api('/api/auth/login', {
@@ -208,7 +230,7 @@ function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, refreshUser, settings, refreshSettings }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, refreshUser, settings, refreshSettings, setThemeMode, activeThemeMode }}>
       {children}
     </AuthContext.Provider>
   );
@@ -413,7 +435,7 @@ const PAGE_TITLES = {
   change_password:  'Change Password',
 };
 
-function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuToggle }) {
+function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuToggle, onThemeToggle, themeMode }) {
   const pageMeta = PAGE_META[page] || {};
   const roleLabel = user?.role ? `${String(user.role).charAt(0).toUpperCase()}${String(user.role).slice(1)}` : 'Account';
   const identityLabel = `${user?.name || 'User'} · ${roleLabel}`;
@@ -460,6 +482,17 @@ function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuT
             {pageMeta.ctaLabel}
           </button>
         ) : null}
+        <button
+          className="btn btn-secondary btn-sm topbar-cta"
+          type="button"
+          onClick={onThemeToggle}
+          title={`Switch to ${themeMode === 'dark' ? 'light' : 'dark'} theme`}
+        >
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+            <NavIcon name={themeMode === 'dark' ? 'sun' : 'moon'} size={14} />
+            {themeMode === 'dark' ? 'Light' : 'Dark'}
+          </span>
+        </button>
         <window.NotificationsBell user={user} />
         <span className="topbar-date desktop-only">
           {new Date().toLocaleDateString('en-MY', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
@@ -471,7 +504,7 @@ function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuT
 
 // ── App Shell ────────────────────────────────────────────────────────────────
 function AppShell() {
-  const { user, logout, refreshUser, settings, refreshSettings } = useContext(AuthContext);
+  const { user, logout, refreshUser, settings, refreshSettings, setThemeMode, activeThemeMode } = useContext(AuthContext);
   const role = (user?.role || '').toLowerCase().trim();
 
   const forcePasswordChange = !!user.must_change_password;
@@ -565,6 +598,8 @@ function AppShell() {
           user={user}
           forcePasswordChange={forcePasswordChange}
           onMenuToggle={() => setMobileNavOpen(v => !v)}
+          onThemeToggle={() => setThemeMode(activeThemeMode === 'dark' ? 'light' : 'dark')}
+          themeMode={activeThemeMode}
         />
         <div className="page-content">
           {renderPage()}

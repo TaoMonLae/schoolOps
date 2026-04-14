@@ -21,6 +21,10 @@ function paymentReceiptCode(payment) {
   return `RCP-${payment.period_year}${String(payment.period_month).padStart(2, '0')}-${String(payment.id).padStart(6, '0')}`;
 }
 
+function paymentVerificationCode(payment) {
+  return `VER-${String(payment.id).padStart(6, '0')}-${payment.period_year}${String(payment.period_month).padStart(2, '0')}`;
+}
+
 // GET /api/fees — all payments, filterable by ?month=&year=&student_id=
 router.get('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   const { month, year, student_id } = req.query;
@@ -51,7 +55,48 @@ router.get('/:id(\\d+)', requireAuth, requireRole('admin', 'teacher'), (req, res
   `).get(req.params.id);
 
   if (!payment) return res.status(404).json({ error: 'Payment not found' });
-  res.json({ ...payment, receipt_code: paymentReceiptCode(payment) });
+  res.json({
+    ...payment,
+    receipt_code: paymentReceiptCode(payment),
+    verification_code: paymentVerificationCode(payment),
+  });
+});
+
+// GET /api/fees/verify/:code — verify receipt verification code
+router.get('/verify/:code', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
+  const rawCode = String(req.params.code || '').trim().toUpperCase();
+  const match = /^VER-(\d{6})-(\d{4})(\d{2})$/.exec(rawCode);
+  if (!match) return res.status(400).json({ error: 'Invalid verification code format' });
+
+  const paymentId = Number(match[1]);
+  const year = Number(match[2]);
+  const month = Number(match[3]);
+
+  const payment = db.prepare(`
+    SELECT fp.*, s.name AS student_name, u.name AS received_by_name
+    FROM fee_payments fp
+    JOIN students s ON s.id = fp.student_id
+    LEFT JOIN users u ON u.id = fp.received_by
+    WHERE fp.id = ? AND fp.voided = 0
+  `).get(paymentId);
+
+  if (!payment) return res.status(404).json({ error: 'No payment found for this verification code' });
+  if (payment.period_year !== year || payment.period_month !== month) {
+    return res.status(404).json({ error: 'Verification code does not match payment period' });
+  }
+
+  return res.json({
+    valid: true,
+    id: payment.id,
+    student_name: payment.student_name,
+    amount: payment.amount,
+    paid_date: payment.paid_date,
+    period_month: payment.period_month,
+    period_year: payment.period_year,
+    method: payment.method,
+    receipt_code: paymentReceiptCode(payment),
+    verification_code: paymentVerificationCode(payment),
+  });
 });
 
 // GET /api/fees/student/:id — per-student payment history
@@ -144,7 +189,7 @@ router.get('/:id(\\d+)/receipt/pdf', requireAuth, requireRole('admin', 'teacher'
   const settings = getSettings();
   const currency = settings.currency || 'RM';
   const receiptCode = paymentReceiptCode(payment);
-  const verificationCode = `VER-${String(payment.id).padStart(6, '0')}-${payment.period_year}${String(payment.period_month).padStart(2, '0')}`;
+  const verificationCode = paymentVerificationCode(payment);
   const duplicateCopy = (req.query.copy || '').toString().toLowerCase() === 'duplicate';
   const palette = getPdfThemeTokens(settings.theme);
 
