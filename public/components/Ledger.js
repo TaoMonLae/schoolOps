@@ -1,7 +1,7 @@
 // ── Ledger Component — Chart of Accounts, Account Ledger, Donor Funds, Monthly Closing ──
 window.Ledger = function Ledger() {
   const { showToast } = React.useContext(window.ToastContext);
-  const { settings } = React.useContext(AuthContext);
+  const { settings } = React.useContext(window.AuthContext);
   const currency = settings?.currency || 'RM';
   const now = new Date();
 

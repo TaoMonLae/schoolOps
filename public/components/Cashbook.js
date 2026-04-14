@@ -1,7 +1,7 @@
 // ── Cashbook Component ────────────────────────────────────────────────────────
 window.Cashbook = function Cashbook() {
   const { showToast } = React.useContext(window.ToastContext);
-  const { settings } = React.useContext(AuthContext);
+  const { settings } = React.useContext(window.AuthContext);
   const currency = settings?.currency || 'RM';
   const now = new Date();
 
