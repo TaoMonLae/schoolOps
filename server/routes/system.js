@@ -53,15 +53,29 @@ router.get('/backup/download', requireAuth, requireRole('admin'), async (req, re
     touchLastBackup(nowIso);
     audit(req.user.id, 'DOWNLOAD_BACKUP', 'settings', null, `Database backup downloaded: ${snapshotPath}`);
 
-    res.download(snapshotPath, filename, (err) => {
+    // Stream the file and clean up regardless of success or failure
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/octet-stream');
+
+    const fileStream = fs.createReadStream(snapshotPath);
+
+    const cleanup = () => {
       try {
         if (fs.existsSync(snapshotPath)) fs.unlinkSync(snapshotPath);
       } catch (cleanupErr) {
-        console.error('Failed to clean up backup snapshot', cleanupErr);
+        console.error('Failed to clean up backup snapshot:', cleanupErr);
       }
+    };
 
-      if (err && !res.headersSent) next(err);
+    fileStream.on('error', (streamErr) => {
+      cleanup();
+      if (!res.headersSent) next(streamErr);
     });
+
+    res.on('finish', cleanup);
+    res.on('close', cleanup); // handles client disconnect
+
+    fileStream.pipe(res);
   } catch (err) {
     next(err);
   }
