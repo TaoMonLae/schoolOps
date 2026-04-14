@@ -11,6 +11,9 @@ if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
 const db = new Database(dbPath);
 
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+
 // Apply schema on first run
 const schemaPath = path.join(__dirname, 'schema.sql');
 const schema = fs.readFileSync(schemaPath, 'utf8');
@@ -23,6 +26,15 @@ function tableExists(table) {
 
 function columnExists(table, column) {
   if (!tableExists(table)) return false;
+  // Whitelist: only allow known table names to prevent injection
+  const KNOWN_TABLES = [
+    'users','students','student_contacts','fee_payments','duty_logs','duty_items',
+    'expenditures','attachments','audit_log','settings','inventory_items',
+    'stock_categories','stock_movements','attendance_records','student_movement_logs',
+    'notifications','chart_of_accounts','donor_funds','cashbook_entries',
+    'account_opening_balances','monthly_closings',
+  ];
+  if (!KNOWN_TABLES.includes(table)) throw new Error(`Unknown table: ${table}`);
   const rows = db.prepare(`PRAGMA table_info(${table})`).all();
   return rows.some((row) => row.name === column);
 }
