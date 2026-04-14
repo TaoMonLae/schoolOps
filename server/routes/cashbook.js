@@ -29,57 +29,58 @@ function nextRefNumber(date) {
   return `CBK-${ym}-${String(seq).padStart(6, '0')}`;
 }
 
-// Account-balance helper: sum of debit - credit for asset/expense accounts (or credit - debit for others)
-function accountBalance(accountId) {
-  const acct = db.prepare('SELECT type FROM chart_of_accounts WHERE id = ?').get(accountId);
-  if (!acct) return 0;
-  const ob = db.prepare('SELECT balance FROM account_opening_balances WHERE account_id = ?').get(accountId);
-  const debits = db.prepare(
-    'SELECT COALESCE(SUM(amount),0) AS s FROM cashbook_entries WHERE debit_account_id = ? AND voided = 0'
-  ).get(accountId).s;
-  const credits = db.prepare(
-    'SELECT COALESCE(SUM(amount),0) AS s FROM cashbook_entries WHERE credit_account_id = ? AND voided = 0'
-  ).get(accountId).s;
-  const openingBal = ob ? ob.balance : 0;
-  const isDebitNormal = acct.type === 'asset' || acct.type === 'expense';
-  return isDebitNormal ? openingBal + debits - credits : openingBal + credits - debits;
-}
-
 // GET /api/cashbook/summary — bank/cash balances + monthly totals
 router.get('/summary', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   const { month, year } = req.query;
 
-  // Cash & bank account IDs
-  const cashAccts = db.prepare("SELECT id FROM chart_of_accounts WHERE sub_type = 'cash' AND is_active = 1").all();
-  const bankAccts = db.prepare("SELECT id FROM chart_of_accounts WHERE sub_type = 'bank' AND is_active = 1").all();
+  // Single query: all account balances via aggregation
+  const balances = db.prepare(`
+    SELECT
+      coa.id,
+      coa.type,
+      coa.sub_type,
+      COALESCE(ob.balance, 0) AS opening_balance,
+      COALESCE(SUM(CASE WHEN ce.debit_account_id = coa.id AND ce.voided = 0 THEN ce.amount ELSE 0 END), 0) AS total_debits,
+      COALESCE(SUM(CASE WHEN ce.credit_account_id = coa.id AND ce.voided = 0 THEN ce.amount ELSE 0 END), 0) AS total_credits
+    FROM chart_of_accounts coa
+    LEFT JOIN account_opening_balances ob ON ob.account_id = coa.id
+    LEFT JOIN cashbook_entries ce ON (ce.debit_account_id = coa.id OR ce.credit_account_id = coa.id)
+    WHERE coa.is_active = 1
+    GROUP BY coa.id
+  `).all();
 
-  const totalCash = cashAccts.reduce((s, a) => s + accountBalance(a.id), 0);
-  const totalBank = bankAccts.reduce((s, a) => s + accountBalance(a.id), 0);
+  const calcBalance = (row) => {
+    const isDebitNormal = row.type === 'asset' || row.type === 'expense';
+    return isDebitNormal
+      ? row.opening_balance + row.total_debits - row.total_credits
+      : row.opening_balance + row.total_credits - row.total_debits;
+  };
 
-  // Monthly stats (if month+year provided)
+  const totalCash = balances.filter(r => r.sub_type === 'cash').reduce((s, r) => s + calcBalance(r), 0);
+  const totalBank = balances.filter(r => r.sub_type === 'bank').reduce((s, r) => s + calcBalance(r), 0);
+
   let monthlyIncome = 0, monthlyExpense = 0;
   if (month && year) {
-    const ym = `${year}-${String(month).padStart(2,'0')}`;
-    const incomeAccts = db.prepare("SELECT id FROM chart_of_accounts WHERE type='income' AND is_active=1").all();
-    const expenseAccts = db.prepare("SELECT id FROM chart_of_accounts WHERE type='expense' AND is_active=1").all();
+    const ym = `${year}-${String(month).padStart(2, '0')}`;
 
-    for (const a of incomeAccts) {
-      const cr = db.prepare(
-        "SELECT COALESCE(SUM(amount),0) AS s FROM cashbook_entries WHERE credit_account_id=? AND voided=0 AND strftime('%Y-%m',entry_date)=?"
-      ).get(a.id, ym).s;
-      const dr = db.prepare(
-        "SELECT COALESCE(SUM(amount),0) AS s FROM cashbook_entries WHERE debit_account_id=? AND voided=0 AND strftime('%Y-%m',entry_date)=?"
-      ).get(a.id, ym).s;
-      monthlyIncome += cr - dr;
-    }
-    for (const a of expenseAccts) {
-      const dr = db.prepare(
-        "SELECT COALESCE(SUM(amount),0) AS s FROM cashbook_entries WHERE debit_account_id=? AND voided=0 AND strftime('%Y-%m',entry_date)=?"
-      ).get(a.id, ym).s;
-      const cr = db.prepare(
-        "SELECT COALESCE(SUM(amount),0) AS s FROM cashbook_entries WHERE credit_account_id=? AND voided=0 AND strftime('%Y-%m',entry_date)=?"
-      ).get(a.id, ym).s;
-      monthlyExpense += dr - cr;
+    const monthlyTotals = db.prepare(`
+      SELECT
+        coa.type,
+        COALESCE(SUM(CASE WHEN ce.credit_account_id = coa.id THEN ce.amount ELSE 0 END), 0) AS period_credits,
+        COALESCE(SUM(CASE WHEN ce.debit_account_id  = coa.id THEN ce.amount ELSE 0 END), 0) AS period_debits
+      FROM chart_of_accounts coa
+      LEFT JOIN cashbook_entries ce
+        ON (ce.debit_account_id = coa.id OR ce.credit_account_id = coa.id)
+        AND ce.voided = 0
+        AND strftime('%Y-%m', ce.entry_date) = ?
+      WHERE coa.is_active = 1
+        AND coa.type IN ('income','expense')
+      GROUP BY coa.id, coa.type
+    `).all(ym);
+
+    for (const r of monthlyTotals) {
+      if (r.type === 'income')  monthlyIncome  += r.period_credits - r.period_debits;
+      if (r.type === 'expense') monthlyExpense += r.period_debits  - r.period_credits;
     }
   }
 
