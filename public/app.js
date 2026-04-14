@@ -60,6 +60,7 @@ function NavIcon({ name, size = 16 }) {
 
 // ── Auth Context ──────────────────────────────────────────────────────────────
 const AuthContext = React.createContext(null);
+window.AuthContext = AuthContext;
 
 const PAGE_META = {
   dashboard: {
