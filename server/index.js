@@ -44,11 +44,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc:     ["'self'"],
-      scriptSrc:      ["'self'", "https://unpkg.com", "'unsafe-eval'"],
+      scriptSrc:      ["'self'", "https://unpkg.com", "'unsafe-inline'", "'unsafe-eval'"],
       styleSrc:       ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:        ["'self'", "https://fonts.gstatic.com"],
       imgSrc:         ["'self'", "data:", "blob:"],
-      connectSrc:     ["'self'"],
+      connectSrc:     ["'self'", "https://unpkg.com"],
       workerSrc:      ["'none'"],
       objectSrc:      ["'none'"],
       frameAncestors: ["'none'"],
