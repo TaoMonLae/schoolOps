@@ -1,9 +1,4 @@
-const {
-  SCHOOL_LAT,
-  SCHOOL_LNG,
-  SCHOOL_GEOFENCE_RADIUS_M,
-  MAX_LOCATION_ACCURACY_M,
-} = require('../config/movementGps');
+const { getMovementGpsConfig } = require('../config/movementGps');
 
 function toFiniteNumber(value) {
   const parsed = typeof value === 'number' ? value : Number.parseFloat(value);
@@ -42,6 +37,20 @@ function haversineDistanceMeters(lat1, lng1, lat2, lng2) {
 }
 
 function evaluateLocationAgainstSchool(location) {
+  const config = getMovementGpsConfig();
+  if (!config.enabled) {
+    return {
+      configError: true,
+      error: `Movement GPS is not configured: ${config.errors.join('; ')}`,
+    };
+  }
+
+  const {
+    SCHOOL_LAT,
+    SCHOOL_LNG,
+    SCHOOL_GEOFENCE_RADIUS_M,
+    MAX_LOCATION_ACCURACY_M,
+  } = config;
   const distanceMeters = haversineDistanceMeters(location.lat, location.lng, SCHOOL_LAT, SCHOOL_LNG);
   const accuracyAcceptable = location.accuracy <= MAX_LOCATION_ACCURACY_M;
   const insideGeofence = distanceMeters <= SCHOOL_GEOFENCE_RADIUS_M;
@@ -59,4 +68,5 @@ module.exports = {
   parseLocationPayload,
   haversineDistanceMeters,
   evaluateLocationAgainstSchool,
+  getMovementGpsConfig,
 };

@@ -1,38 +1,52 @@
-function parseRequiredNumber(name) {
+function parseRequiredNumber(name, errors) {
   const raw = process.env[name];
   if (raw == null || raw.toString().trim() === '') {
-    throw new Error(`${name} environment variable is required`);
+    errors.push(`${name} environment variable is required`);
+    return null;
   }
   const value = Number.parseFloat(raw);
   if (!Number.isFinite(value)) {
-    throw new Error(`${name} must be a valid number`);
+    errors.push(`${name} must be a valid number`);
+    return null;
   }
   return value;
 }
 
-function assertRange(name, value, min, max) {
+function assertRange(name, value, min, max, errors) {
+  if (value == null) return;
   if (value < min || value > max) {
-    throw new Error(`${name} must be between ${min} and ${max}`);
+    errors.push(`${name} must be between ${min} and ${max}`);
   }
 }
 
-const SCHOOL_LAT = parseRequiredNumber('SCHOOL_LAT');
-const SCHOOL_LNG = parseRequiredNumber('SCHOOL_LNG');
-const SCHOOL_GEOFENCE_RADIUS_M = parseRequiredNumber('SCHOOL_GEOFENCE_RADIUS_M');
-const MAX_LOCATION_ACCURACY_M = parseRequiredNumber('MAX_LOCATION_ACCURACY_M');
+function resolveMovementGpsConfig() {
+  const errors = [];
+  const SCHOOL_LAT = parseRequiredNumber('SCHOOL_LAT', errors);
+  const SCHOOL_LNG = parseRequiredNumber('SCHOOL_LNG', errors);
+  const SCHOOL_GEOFENCE_RADIUS_M = parseRequiredNumber('SCHOOL_GEOFENCE_RADIUS_M', errors);
+  const MAX_LOCATION_ACCURACY_M = parseRequiredNumber('MAX_LOCATION_ACCURACY_M', errors);
 
-assertRange('SCHOOL_LAT', SCHOOL_LAT, -90, 90);
-assertRange('SCHOOL_LNG', SCHOOL_LNG, -180, 180);
-if (SCHOOL_GEOFENCE_RADIUS_M <= 0) {
-  throw new Error('SCHOOL_GEOFENCE_RADIUS_M must be greater than 0');
-}
-if (MAX_LOCATION_ACCURACY_M <= 0) {
-  throw new Error('MAX_LOCATION_ACCURACY_M must be greater than 0');
+  assertRange('SCHOOL_LAT', SCHOOL_LAT, -90, 90, errors);
+  assertRange('SCHOOL_LNG', SCHOOL_LNG, -180, 180, errors);
+  if (SCHOOL_GEOFENCE_RADIUS_M != null && SCHOOL_GEOFENCE_RADIUS_M <= 0) {
+    errors.push('SCHOOL_GEOFENCE_RADIUS_M must be greater than 0');
+  }
+  if (MAX_LOCATION_ACCURACY_M != null && MAX_LOCATION_ACCURACY_M <= 0) {
+    errors.push('MAX_LOCATION_ACCURACY_M must be greater than 0');
+  }
+
+  return {
+    enabled: errors.length === 0,
+    errors,
+    SCHOOL_LAT,
+    SCHOOL_LNG,
+    SCHOOL_GEOFENCE_RADIUS_M,
+    MAX_LOCATION_ACCURACY_M,
+  };
 }
 
-module.exports = {
-  SCHOOL_LAT,
-  SCHOOL_LNG,
-  SCHOOL_GEOFENCE_RADIUS_M,
-  MAX_LOCATION_ACCURACY_M,
-};
+function getMovementGpsConfig() {
+  return resolveMovementGpsConfig();
+}
+
+module.exports = { getMovementGpsConfig };

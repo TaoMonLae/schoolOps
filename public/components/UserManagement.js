@@ -189,7 +189,7 @@ window.UserManagement = function UserManagement() {
                           {u.linked_student_id && u.role === 'student' ? (
                             <button className="btn btn-secondary btn-sm" disabled={!!u.is_retired} onClick={() => onQuickToggle(u, 'student_id', null)}>Unlink student profile</button>
                           ) : null}
-                          <button className="btn btn-danger btn-sm" disabled={!!u.is_retired} onClick={() => setRetiring(u)}>Delete User</button>
+                          <button className="btn btn-danger btn-sm" disabled={!!u.is_retired} onClick={() => setRetiring(u)}>Retire User</button>
                         </div>
                       </details>
                     </div>
@@ -524,7 +524,7 @@ function RetireUserModal({ user, onClose, onConfirm }) {
   };
 
   return (
-    <window.Modal title={`Delete User: ${user.username}`} onClose={onClose}>
+    <window.Modal title={`Retire User: ${user.username}`} onClose={onClose}>
       <p style={{ marginTop: 0 }}>
         This will <strong>retire</strong> the account safely (no hard delete). Historical records and audit references remain intact.
       </p>
@@ -534,7 +534,7 @@ function RetireUserModal({ user, onClose, onConfirm }) {
       </div>
       <div className="modal-actions">
         <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-        <button className="btn btn-danger" disabled={busy} onClick={submit}>{busy ? 'Retiring...' : 'Confirm Delete (Retire)'}</button>
+        <button className="btn btn-danger" disabled={busy} onClick={submit}>{busy ? 'Retiring...' : 'Confirm Retire'}</button>
       </div>
     </window.Modal>
   );
