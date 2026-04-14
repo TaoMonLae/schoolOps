@@ -13,7 +13,7 @@ const MONTHS = [
 ];
 
 // Generate audit-friendly reference number: CBK-YYYYMM-NNNNNN
-function nextRefNumber(date) {
+function nextRefNumber(db, date) {
   const d = date || new Date().toISOString().slice(0, 10);
   const ym = d.slice(0, 7).replace('-', '');
   const last = db.prepare(`
@@ -177,9 +177,10 @@ router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   if (closed && req.user.role !== 'admin')
     return res.status(409).json({ error: `Period ${MONTHS[mo-1]} ${yr} is closed. Contact admin.` });
 
-  const ref = nextRefNumber(entry_date);
   let result;
-  try {
+  let ref;
+  const insertTx = db.transaction(() => {
+    ref = nextRefNumber(db, entry_date);   // generated inside transaction = atomic
     result = db.prepare(`
       INSERT INTO cashbook_entries
         (entry_date, ref_number, description, debit_account_id, credit_account_id,
@@ -191,8 +192,12 @@ router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
       amount, payment_method || 'cash', bank_account_name || null, payment_ref || null,
       fund_id || null, source_table || null, source_id || null, notes || null, req.user.id
     );
+  });
+
+  try {
+    insertTx();
   } catch (err) {
-    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') return res.status(409).json({ error: 'Duplicate ref number, retry' });
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') return res.status(409).json({ error: 'Duplicate ref number, please retry' });
     throw err;
   }
 
