@@ -361,7 +361,8 @@ function Sidebar({ page, setPage, user, logout, settings, mobileOpen, onClose })
             ) : null}
             <h1>{settings.school_name}</h1>
             <small>{settings.subtitle}</small>
-        </div>
+         </div>
+      </div>
         <nav className="sidebar-nav">
           {nav.map((item, i) =>
             item.section ? (
