@@ -31,7 +31,7 @@ function columnExists(table, column) {
     'users','students','student_contacts','fee_payments','duty_logs','duty_items',
     'expenditures','attachments','audit_log','settings','inventory_items',
     'stock_categories','stock_movements','attendance_records','student_movement_logs',
-    'notifications','chart_of_accounts','donor_funds','cashbook_entries',
+    'student_movement_tracking_pings','notifications','chart_of_accounts','donor_funds','cashbook_entries',
     'account_opening_balances','monthly_closings',
   ];
   if (!KNOWN_TABLES.includes(table)) throw new Error(`Unknown table: ${table}`);
@@ -290,6 +290,69 @@ function runMigrations() {
       )
     `);
   }
+
+  if (!columnExists('student_movement_logs', 'clock_out_lat')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_out_lat REAL');
+  }
+  if (!columnExists('student_movement_logs', 'clock_out_lng')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_out_lng REAL');
+  }
+  if (!columnExists('student_movement_logs', 'clock_out_accuracy')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_out_accuracy REAL');
+  }
+  if (!columnExists('student_movement_logs', 'clock_out_distance_m')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_out_distance_m REAL');
+  }
+  if (!columnExists('student_movement_logs', 'clock_out_verified')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_out_verified INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!columnExists('student_movement_logs', 'clock_out_verified_at')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_out_verified_at TEXT');
+  }
+  if (!columnExists('student_movement_logs', 'clock_in_lat')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_in_lat REAL');
+  }
+  if (!columnExists('student_movement_logs', 'clock_in_lng')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_in_lng REAL');
+  }
+  if (!columnExists('student_movement_logs', 'clock_in_accuracy')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_in_accuracy REAL');
+  }
+  if (!columnExists('student_movement_logs', 'clock_in_distance_m')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_in_distance_m REAL');
+  }
+  if (!columnExists('student_movement_logs', 'clock_in_verified')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_in_verified INTEGER NOT NULL DEFAULT 0');
+  }
+  if (!columnExists('student_movement_logs', 'clock_in_verified_at')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN clock_in_verified_at TEXT');
+  }
+  if (!columnExists('student_movement_logs', 'tracking_status')) {
+    db.exec("ALTER TABLE student_movement_logs ADD COLUMN tracking_status TEXT NOT NULL DEFAULT 'active'");
+  }
+  if (!columnExists('student_movement_logs', 'tracking_last_ping_at')) {
+    db.exec('ALTER TABLE student_movement_logs ADD COLUMN tracking_last_ping_at TEXT');
+  }
+
+  if (!tableExists('student_movement_tracking_pings')) {
+    db.exec(`
+      CREATE TABLE student_movement_tracking_pings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        movement_id INTEGER NOT NULL REFERENCES student_movement_logs(id) ON DELETE CASCADE,
+        ping_time TEXT NOT NULL,
+        lat REAL NOT NULL,
+        lng REAL NOT NULL,
+        accuracy REAL NOT NULL,
+        distance_m REAL,
+        source TEXT NOT NULL DEFAULT 'gps_ping' CHECK(source IN ('gps_ping')),
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+  }
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_movement_tracking_pings_movement_time
+    ON student_movement_tracking_pings (movement_id, ping_time DESC)
+  `);
 
   if (!tableExists('student_contacts')) {
     db.exec(`

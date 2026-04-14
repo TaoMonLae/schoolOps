@@ -99,6 +99,21 @@ CREATE TABLE IF NOT EXISTS student_movement_logs (
   approved_at       TEXT,
   recorded_out_by   INTEGER REFERENCES users(id),
   recorded_in_by    INTEGER REFERENCES users(id),
+  clock_out_lat     REAL,
+  clock_out_lng     REAL,
+  clock_out_accuracy REAL,
+  clock_out_distance_m REAL,
+  clock_out_verified INTEGER NOT NULL DEFAULT 0,
+  clock_out_verified_at TEXT,
+  clock_in_lat      REAL,
+  clock_in_lng      REAL,
+  clock_in_accuracy REAL,
+  clock_in_distance_m REAL,
+  clock_in_verified INTEGER NOT NULL DEFAULT 0,
+  clock_in_verified_at TEXT,
+  tracking_status   TEXT NOT NULL DEFAULT 'active'
+                     CHECK(tracking_status IN ('active','interrupted','completed')),
+  tracking_last_ping_at TEXT,
   created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at        TEXT    NOT NULL DEFAULT (datetime('now'))
 );
@@ -108,6 +123,21 @@ ON student_movement_logs (student_id, leave_time DESC);
 
 CREATE INDEX IF NOT EXISTS idx_student_movement_open
 ON student_movement_logs (return_time, leave_time DESC);
+
+CREATE TABLE IF NOT EXISTS student_movement_tracking_pings (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  movement_id  INTEGER NOT NULL REFERENCES student_movement_logs(id) ON DELETE CASCADE,
+  ping_time    TEXT    NOT NULL,
+  lat          REAL    NOT NULL,
+  lng          REAL    NOT NULL,
+  accuracy     REAL    NOT NULL,
+  distance_m   REAL,
+  source       TEXT    NOT NULL DEFAULT 'gps_ping' CHECK(source IN ('gps_ping')),
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_movement_tracking_pings_movement_time
+ON student_movement_tracking_pings (movement_id, ping_time DESC);
 
 -- ─────────────────────────────────────────
 -- Fee Payments
