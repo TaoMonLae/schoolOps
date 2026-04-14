@@ -152,8 +152,13 @@ function getMonthlyData(month, year) {
 function getYearlyData(year) {
   const monthly = [];
   const expenditureCategoryTotals = {};
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  // Don't query future months — they have no data and waste DB resources
+  const maxMonth = (Number(year) === currentYear) ? currentMonth : 12;
 
-  for (let month = 1; month <= 12; month++) {
+  for (let month = 1; month <= maxMonth; month++) {
     const m = getMonthlyData(month, year);
     monthly.push({
       month,
