@@ -115,6 +115,24 @@ const PAGE_META = {
     ctaType: 'page',
     targetPage: 'duty_history',
   },
+  student_home: {
+    subtitle: 'See your fee, duty, and outing summary in one place.',
+    ctaLabel: 'Open my fees',
+    ctaType: 'page',
+    targetPage: 'student_fees',
+  },
+  student_fees: {
+    subtitle: 'Track your payments, current status, and outstanding balance.',
+    ctaLabel: 'Open my receipts',
+    ctaType: 'page',
+    targetPage: 'student_receipts',
+  },
+  student_receipts: {
+    subtitle: 'Verify and download your payment receipts securely.',
+    ctaLabel: 'Back to dashboard',
+    ctaType: 'page',
+    targetPage: 'student_home',
+  },
   expenditures: {
     subtitle: 'Record general spending clearly so reports stay trustworthy.',
     ctaLabel: 'Open cashbook',
@@ -354,11 +372,13 @@ const NAV_TEACHER = [
 ];
 
 const NAV_STUDENT = [
-  { section: 'Duty' },
+  { section: 'My Portal' },
+  { id: 'student_home',     label: 'My Dashboard',   icon: 'dashboard' },
   { id: 'duty_submit',      label: 'Submit Duty',    icon: 'edit' },
-  { id: 'duty_history',     label: 'My History',     icon: 'clock' },
-  { section: 'Movement' },
+  { id: 'duty_history',     label: 'My Duty History',icon: 'clock' },
   { id: 'student_movement', label: 'Out / In',       icon: 'arrows' },
+  { id: 'student_fees',     label: 'My Fees',        icon: 'fees' },
+  { id: 'student_receipts', label: 'My Receipts',    icon: 'book' },
   { section: 'Account' },
   { id: 'change_password',  label: 'Change Password',icon: 'lock' },
 ];
@@ -421,9 +441,12 @@ const PAGE_TITLES = {
   attendance:       'Attendance & Hostel',
   fees:             'Fee Payments',
   duty:             'Duty Logs',
+  student_home:     'My Dashboard',
   duty_submit:      'Submit Duty Log',
   duty_history:     'My Duty History',
   student_movement: 'Student Out / In',
+  student_fees:     'My Fees',
+  student_receipts: 'My Receipts',
   expenditures:     'General Expenditures',
   inventory:        'Inventory & Stock',
   cashbook:         'Cashbook',
@@ -511,7 +534,7 @@ function AppShell() {
 
   const defaultPage = forcePasswordChange
     ? 'change_password'
-    : role === 'student' ? 'duty_submit' : 'dashboard';
+    : role === 'student' ? 'student_home' : 'dashboard';
 
   const [page, setPage] = useState(defaultPage);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -551,9 +574,12 @@ function AppShell() {
       case 'attendance':   return <window.Attendance user={user} />;
       case 'fees':         return <window.Fees user={user} />;
       case 'duty':         return <window.DutyLog user={user} mode="review" />;
+      case 'student_home': return <window.StudentHome user={user} />;
       case 'duty_submit':  return <window.DutyLog user={user} mode="submit" />;
       case 'duty_history': return <window.DutyLog user={user} mode="history" />;
       case 'student_movement': return <window.StudentMovement user={user} />;
+      case 'student_fees': return <window.StudentFees user={user} />;
+      case 'student_receipts': return <window.StudentReceipts user={user} />;
       case 'expenditures': return <window.Expenditures />;
       case 'inventory':    return <window.Inventory />;
       case 'cashbook':     return <window.Cashbook />;
@@ -570,7 +596,7 @@ function AppShell() {
             forceMode={forcePasswordChange}
             onPasswordChanged={async () => {
               await refreshUser();
-              if (role === 'student') setPage('duty_submit');
+              if (role === 'student') setPage('student_home');
               else setPage('dashboard');
             }}
           />

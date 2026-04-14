@@ -1,6 +1,7 @@
 const express = require('express');
 const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { resolveStudentForRequest } = require('../services/studentIdentity');
 
 const router = express.Router();
 const VALID_STATUSES = ['present', 'absent', 'late', 'excused'];
@@ -79,47 +80,6 @@ function getOpenMovement(studentId) {
     ORDER BY leave_time DESC, id DESC
     LIMIT 1
   `).get(studentId);
-}
-
-function getLinkedStudentForUser(userId) {
-  const direct = db.prepare(`
-    SELECT id, user_id, name, level, hostel_status, dorm_house, room, bed_number
-    FROM students
-    WHERE user_id = ? AND status = 'active'
-    LIMIT 1
-  `).get(userId);
-  if (direct) return direct;
-
-  const user = db.prepare(`
-    SELECT id, name, username, role, is_active, login_disabled
-    FROM users
-    WHERE id = ?
-  `).get(userId);
-
-  if (!user || user.role !== 'student' || !user.is_active || user.login_disabled) return null;
-
-  const candidates = db.prepare(`
-    SELECT id, user_id, name, level, hostel_status, dorm_house, room, bed_number
-    FROM students
-    WHERE status = 'active'
-      AND user_id IS NULL
-      AND (
-        lower(trim(name)) = lower(trim(?))
-        OR lower(trim(name)) = lower(trim(?))
-      )
-    ORDER BY id ASC
-    LIMIT 2
-  `).all(user.name || '', user.username || '');
-
-  if (candidates.length !== 1) return null;
-
-  const student = candidates[0];
-  db.prepare('UPDATE students SET user_id = ? WHERE id = ? AND user_id IS NULL').run(user.id, student.id);
-
-  return {
-    ...student,
-    user_id: user.id,
-  };
 }
 
 function createMovementLog({
@@ -431,7 +391,9 @@ router.get('/movements', requireAuth, requireRole('admin', 'teacher'), (req, res
 });
 
 router.get('/movements/self', requireAuth, requireRole('student'), (req, res) => {
-  const student = getLinkedStudentForUser(req.user.id);
+  const resolved = resolveStudentForRequest(req);
+  if (!resolved.ok) return res.status(resolved.status).json({ error: resolved.error });
+  const student = resolved.student;
   if (!student) return res.status(404).json({ error: 'No student profile is linked to this account' });
 
   const rows = db.prepare(`
@@ -512,7 +474,9 @@ router.post('/movements/clock-out', requireAuth, requireRole('admin', 'teacher')
 });
 
 router.post('/movements/self/clock-out', requireAuth, requireRole('student'), (req, res) => {
-  const student = getLinkedStudentForUser(req.user.id);
+  const resolved = resolveStudentForRequest(req);
+  if (!resolved.ok) return res.status(resolved.status).json({ error: resolved.error });
+  const student = resolved.student;
   if (!student) return res.status(404).json({ error: 'No student profile is linked to this account' });
   if (getOpenMovement(student.id)) {
     return res.status(400).json({ error: 'You already have an open clock-out record' });
@@ -590,7 +554,9 @@ router.post('/movements/:id(\\d+)/clock-in', requireAuth, requireRole('admin', '
 });
 
 router.post('/movements/self/:id(\\d+)/clock-in', requireAuth, requireRole('student'), (req, res) => {
-  const student = getLinkedStudentForUser(req.user.id);
+  const resolved = resolveStudentForRequest(req);
+  if (!resolved.ok) return res.status(resolved.status).json({ error: resolved.error });
+  const student = resolved.student;
   if (!student) return res.status(404).json({ error: 'No student profile is linked to this account' });
 
   const movementId = Number.parseInt(req.params.id, 10);
