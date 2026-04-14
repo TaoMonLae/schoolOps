@@ -14,6 +14,14 @@ window.Students = function Students({ user }) {
   const [contacts, setContacts] = React.useState([]);
   const [contactForm, setContactForm] = React.useState(null);
   const [savingContact, setSavingContact] = React.useState(false);
+  const [loginModalStudent, setLoginModalStudent] = React.useState(null);
+  const [manageLoginStudent, setManageLoginStudent] = React.useState(null);
+  const [loginForm, setLoginForm] = React.useState({ username: '', password: '', confirm_password: '', must_change_password: true });
+  const [loginErrors, setLoginErrors] = React.useState({});
+  const [creatingLogin, setCreatingLogin] = React.useState(false);
+  const [resetForm, setResetForm] = React.useState({ new_password: '', temporary: true });
+  const [resetErrors, setResetErrors] = React.useState({});
+  const [resettingLogin, setResettingLogin] = React.useState(false);
   const [page, setPage] = React.useState(1);
   const [importing, setImporting] = React.useState(false);
   const [importResult, setImportResult] = React.useState(null);
@@ -116,18 +124,61 @@ window.Students = function Students({ user }) {
     } catch (e) { showToast(e.message, 'error'); }
   };
 
-  const createStudentLogin = async (s) => {
-    if (!isAdmin) return;
-    if (!confirm2(`Create linked login for ${s.name}?`)) return;
+  const suggestStudentUsername = (student) => {
+    const base = String(student?.name || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '.')
+      .replace(/^\.+|\.+$/g, '')
+      .slice(0, 32);
+    return `stu.${base || `student.${student.id}`}`.slice(0, 48);
+  };
+
+  const openCreateLoginModal = (student) => {
+    if (!isAdmin || student?.user_id) return;
+    setLoginErrors({});
+    setLoginForm({
+      username: suggestStudentUsername(student),
+      password: '',
+      confirm_password: '',
+      must_change_password: true,
+    });
+    setLoginModalStudent(student);
+  };
+
+  const submitCreateLogin = async (e) => {
+    e.preventDefault();
+    if (!loginModalStudent || !isAdmin) return;
+    const nextErrors = window.validateFields([
+      { field: 'username', check: () => window.FormValidator.required(loginForm.username, 'Username') },
+      { field: 'password', check: () => window.FormValidator.required(loginForm.password, 'Password') },
+      {
+        field: 'confirm_password',
+        check: () => (loginForm.password === loginForm.confirm_password ? '' : 'Confirm password must match password'),
+      },
+    ]);
+    setLoginErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
+      showToast('Please fix highlighted form fields', 'error');
+      return;
+    }
+
+    setCreatingLogin(true);
     try {
-      const result = await api(`/api/students/${s.id}/create-login`, { method: 'POST' });
-      window.alert(`Login created for ${s.name}
-Username: ${result.username}
-Temporary password: ${result.temporary_password}
-Student must change password at first login.`);
-      load();
-    } catch (e) {
-      showToast(e.message, 'error');
+      const result = await api(`/api/students/${loginModalStudent.id}/create-login`, {
+        method: 'POST',
+        body: {
+          username: loginForm.username,
+          password: loginForm.password,
+          must_change_password: loginForm.must_change_password,
+        },
+      });
+      showToast(`Student login account created successfully (${result.username})`);
+      setLoginModalStudent(null);
+      await load();
+    } catch (e2) {
+      showToast(e2.message, 'error');
+    } finally {
+      setCreatingLogin(false);
     }
   };
 
@@ -140,6 +191,40 @@ Student must change password at first login.`);
       load();
     } catch (e) {
       showToast(e.message, 'error');
+    }
+  };
+
+  const openManageLogin = (s) => {
+    if (!isAdmin || !s?.user_id) return;
+    setResetErrors({});
+    setResetForm({ new_password: '', temporary: true });
+    setManageLoginStudent(s);
+  };
+
+  const submitResetLinkedLogin = async (e) => {
+    e.preventDefault();
+    if (!isAdmin || !manageLoginStudent?.user_id) return;
+    const nextErrors = window.validateFields([
+      { field: 'new_password', check: () => window.FormValidator.required(resetForm.new_password, 'New password') },
+    ]);
+    if (!nextErrors.new_password && resetForm.new_password.length < 8) {
+      nextErrors.new_password = 'New password must be at least 8 characters';
+    }
+    setResetErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
+      showToast('Please fix highlighted form fields', 'error');
+      return;
+    }
+    setResettingLogin(true);
+    try {
+      await api(`/api/users/${manageLoginStudent.user_id}/reset-password`, { method: 'POST', body: resetForm });
+      showToast('Linked account password reset complete');
+      setManageLoginStudent(null);
+      await load();
+    } catch (e2) {
+      showToast(e2.message, 'error');
+    } finally {
+      setResettingLogin(false);
     }
   };
 
@@ -324,9 +409,12 @@ Student must change password at first login.`);
                     <td><window.StatusBadge status={s.status} /></td>
                     <td>
                       {s.user_id ? (
-                        <span className="badge badge-green">Linked ({s.linked_username || `user#${s.user_id}`})</span>
+                        <div style={{ display:'grid', gap:4 }}>
+                          <span className="badge badge-green">Linked</span>
+                          <small style={{ color:'var(--muted)' }}>{s.linked_username || `user#${s.user_id}`}</small>
+                        </div>
                       ) : (
-                        <span className="badge badge-gray">No Login</span>
+                        <span className="badge badge-gray">Not linked</span>
                       )}
                     </td>
                     <td>
@@ -341,10 +429,13 @@ Student must change password at first login.`);
                         <button className="btn btn-secondary btn-sm" onClick={() => openContacts(s)} title="Manage contacts"></button>
                         <button className="btn btn-secondary btn-sm" onClick={() => openHistory(s)}></button>
                         {isAdmin && !s.user_id && s.status === 'active' && (
-                          <button className="btn btn-secondary btn-sm" onClick={() => createStudentLogin(s)} title="Create linked login">Create Login</button>
+                          <button className="btn btn-secondary btn-sm" onClick={() => openCreateLoginModal(s)} title="Create linked login">Create Login Account</button>
                         )}
                         {isAdmin && s.user_id && (
-                          <button className="btn btn-secondary btn-sm" onClick={() => unlinkStudentLogin(s)} title="Unlink login">Unlink</button>
+                          <>
+                            <button className="btn btn-secondary btn-sm" onClick={() => openManageLogin(s)} title="Manage linked account">Manage Account</button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => unlinkStudentLogin(s)} title="Unlink login">Unlink</button>
+                          </>
                         )}
                         {isAdmin && s.status === 'active' && (
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(s)} title="Deactivate student">⊘</button>
@@ -441,6 +532,23 @@ Student must change password at first login.`);
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>
+                <div className="form-group span2">
+                  <label>Linked Login Account</label>
+                  <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                    {modal.user_id ? (
+                      <>
+                        <span className="badge badge-green">Linked</span>
+                        <small style={{ color:'var(--muted)' }}>{modal.linked_username || `user#${modal.user_id}`}</small>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openManageLogin(modal)}>Manage Account</button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="badge badge-gray">Not linked</span>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openCreateLoginModal(modal)}>Create Login Account</button>
+                      </>
+                    )}
+                  </div>
+                </div>
               </>
               )}
               <div className="form-group span2">
@@ -451,6 +559,100 @@ Student must change password at first login.`);
             <div className="modal-actions">
               <button type="button" className="btn btn-secondary" onClick={() => setModal(null)}>Cancel</button>
               <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+            </div>
+          </form>
+        </window.Modal>
+      )}
+
+      {loginModalStudent && (
+        <window.Modal title="Create Login Account" onClose={() => setLoginModalStudent(null)}>
+          <form onSubmit={submitCreateLogin}>
+            <div className="form-grid">
+              <div className="form-group span2">
+                <label>Student</label>
+                <input value={`${loginModalStudent.name} (${loginModalStudent.level})`} disabled readOnly />
+              </div>
+              <div className="form-group">
+                <label>Role</label>
+                <input value="student" disabled readOnly />
+              </div>
+              <div className="form-group">
+                <label>Account Status</label>
+                <input value="Not linked" disabled readOnly />
+              </div>
+              <div className="form-group span2">
+                <label>Username *</label>
+                <input value={loginForm.username} onChange={e => setLoginForm(f => ({ ...f, username: e.target.value }))} placeholder="Username" />
+                {loginErrors.username ? <small style={{ color:'var(--red)' }}>{loginErrors.username}</small> : null}
+              </div>
+              <div className="form-group">
+                <label>Password *</label>
+                <input type="password" value={loginForm.password} onChange={e => setLoginForm(f => ({ ...f, password: e.target.value }))} placeholder="At least 8 characters" />
+                {loginErrors.password ? <small style={{ color:'var(--red)' }}>{loginErrors.password}</small> : null}
+              </div>
+              <div className="form-group">
+                <label>Confirm Password *</label>
+                <input type="password" value={loginForm.confirm_password} onChange={e => setLoginForm(f => ({ ...f, confirm_password: e.target.value }))} />
+                {loginErrors.confirm_password ? <small style={{ color:'var(--red)' }}>{loginErrors.confirm_password}</small> : null}
+              </div>
+              <div className="form-group span2">
+                <label>
+                  <input
+                    type="checkbox"
+                    style={{ width: 'auto', marginRight: 6 }}
+                    checked={loginForm.must_change_password}
+                    onChange={e => setLoginForm(f => ({ ...f, must_change_password: e.target.checked }))}
+                  />
+                  Force password change on first login
+                </label>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setLoginModalStudent(null)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={creatingLogin}>{creatingLogin ? 'Creating…' : 'Create Login Account'}</button>
+            </div>
+          </form>
+        </window.Modal>
+      )}
+
+      {manageLoginStudent && (
+        <window.Modal title="Manage Linked Account" onClose={() => setManageLoginStudent(null)}>
+          <div className="form-grid">
+            <div className="form-group span2">
+              <label>Student</label>
+              <input value={`${manageLoginStudent.name} (${manageLoginStudent.level})`} disabled readOnly />
+            </div>
+            <div className="form-group">
+              <label>Account Status</label>
+              <input value="Linked" disabled readOnly />
+            </div>
+            <div className="form-group">
+              <label>Username</label>
+              <input value={manageLoginStudent.linked_username || `user#${manageLoginStudent.user_id}`} disabled readOnly />
+            </div>
+          </div>
+          <form onSubmit={submitResetLinkedLogin} style={{ marginTop: 10, borderTop:'1px solid var(--border)', paddingTop: 10 }}>
+            <div className="form-grid">
+              <div className="form-group span2">
+                <label>Reset Password</label>
+                <input type="password" value={resetForm.new_password} onChange={e => setResetForm(f => ({ ...f, new_password: e.target.value }))} placeholder="At least 8 characters" />
+                {resetErrors.new_password ? <small style={{ color:'var(--red)' }}>{resetErrors.new_password}</small> : null}
+              </div>
+              <div className="form-group span2">
+                <label>
+                  <input
+                    type="checkbox"
+                    style={{ width: 'auto', marginRight: 6 }}
+                    checked={resetForm.temporary}
+                    onChange={e => setResetForm(f => ({ ...f, temporary: e.target.checked }))}
+                  />
+                  Force password change on next login
+                </label>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setManageLoginStudent(null)}>Close</button>
+              <button type="submit" className="btn btn-amber" disabled={resettingLogin}>{resettingLogin ? 'Saving…' : 'Reset Password'}</button>
             </div>
           </form>
         </window.Modal>

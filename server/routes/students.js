@@ -6,6 +6,7 @@ const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { buildArrearsRecords } = require('../services/arrears');
 const { getSettings } = require('../services/settings');
+const { createNotification } = require('../services/notifications');
 const { multipartUpload } = require('../middleware/multipartUpload');
 const { drawPdfLogo, getPdfThemeTokens } = require('../services/pdfBranding');
 
@@ -559,56 +560,67 @@ function slugUsername(value) {
     .slice(0, 32);
 }
 
-function generateUniqueStudentUsername(student) {
-  const baseRaw = slugUsername(student.name) || `student.${student.id}`;
-  const base = `stu.${baseRaw}`.slice(0, 42);
-  let candidate = base;
-  let counter = 1;
-  while (db.prepare('SELECT id FROM users WHERE username = ?').get(candidate)) {
-    counter += 1;
-    candidate = `${base}.${counter}`.slice(0, 48);
-  }
-  return candidate;
-}
-
-function generateTempPassword() {
-  return `Stu!${Math.random().toString(36).slice(-6)}${Math.floor(10 + (Math.random() * 89))}`;
-}
-
 // POST /api/students/:id/create-login
 router.post('/:id(\\d+)/create-login', requireAuth, requireRole('admin'), (req, res) => {
   const studentId = Number.parseInt(req.params.id, 10);
-  const student = db.prepare('SELECT id, name, user_id FROM students WHERE id = ?').get(studentId);
+  const student = db.prepare('SELECT id, name, level, user_id FROM students WHERE id = ?').get(studentId);
   if (!student) return res.status(404).json({ error: 'Student not found' });
   if (student.user_id) return res.status(409).json({ error: 'Student already has a linked login account' });
 
-  const username = generateUniqueStudentUsername(student);
-  const tempPassword = generateTempPassword();
-  const passwordHash = bcrypt.hashSync(tempPassword, 10);
+  const username = String(req.body?.username || '').trim();
+  const password = String(req.body?.password || '');
+  const mustChangePassword = req.body?.must_change_password === false ? 0 : 1;
+
+  if (!username) return res.status(400).json({ error: 'Username is required' });
+  if (!password) return res.status(400).json({ error: 'Password is required' });
+  if (username.length > 50) return res.status(400).json({ error: 'Username must be 50 characters or fewer' });
+  if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  if (password.length > 128) return res.status(400).json({ error: 'Password must be 128 characters or fewer' });
+
+  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  if (existing) return res.status(409).json({ error: 'Username already exists' });
+
+  const passwordHash = bcrypt.hashSync(password, 10);
 
   const tx = db.transaction(() => {
     const userResult = db.prepare(`
       INSERT INTO users (name, username, password_hash, role, is_active, login_disabled, must_change_password)
-      VALUES (?, ?, ?, 'student', 1, 0, 1)
-    `).run(student.name, username, passwordHash);
+      VALUES (?, ?, ?, 'student', 1, 0, ?)
+    `).run(student.name, username, passwordHash, mustChangePassword);
 
     const userId = Number(userResult.lastInsertRowid);
-    db.prepare('UPDATE students SET user_id = ? WHERE id = ? AND user_id IS NULL').run(userId, student.id);
+    const linkResult = db.prepare('UPDATE students SET user_id = ? WHERE id = ? AND user_id IS NULL').run(userId, student.id);
+    if (linkResult.changes !== 1) {
+      throw new Error('Student already linked');
+    }
+    if (mustChangePassword === 1) {
+      createNotification({
+        userId,
+        type: 'first_login_password_change_needed',
+        title: 'Password change required',
+        message: 'Your account requires a password change on first login.',
+        entityType: 'student',
+        entityId: student.id,
+      });
+    }
     return userId;
   });
 
   try {
     const userId = tx();
-    audit(req.user.id, 'CREATE_STUDENT_LOGIN', 'students', student.id, `Created linked student login for ${student.name}`);
+    audit(req.user.id, 'CREATE_STUDENT_LOGIN', 'students', student.id, `Created linked student login "${username}" for ${student.name}`);
+    audit(req.user.id, 'LINK_STUDENT_USER', 'users', userId, `Linked student "${student.name}" (${student.level}) to user "${username}"`);
     return res.status(201).json({
       ok: true,
       student_id: student.id,
       user_id: userId,
       username,
-      temporary_password: tempPassword,
-      must_change_password: true,
+      must_change_password: mustChangePassword === 1,
     });
   } catch (err) {
+    if (err.message === 'Student already linked') {
+      return res.status(409).json({ error: 'Student already has a linked login account' });
+    }
     if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       return res.status(409).json({ error: 'Unable to create linked account due to uniqueness conflict' });
     }
