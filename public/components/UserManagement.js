@@ -46,6 +46,7 @@ window.UserManagement = function UserManagement() {
       {loading ? (
         <div className="empty"><div className="icon">⏳</div>Loading users...</div>
       ) : (
+        <div className="table-scroll">
         <table>
           <thead>
             <tr>
@@ -87,6 +88,7 @@ window.UserManagement = function UserManagement() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       {showCreate && (

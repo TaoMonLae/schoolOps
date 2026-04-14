@@ -107,7 +107,7 @@ function DutySubmit({ user }) {
       </div>
 
       <div className="content-grid-2">
-        <div className="card">
+        <div className="card" style={{ maxWidth: '100%' }}>
           <div className="card-title">New Duty Log</div>
           <form onSubmit={handleSubmit}>
             <div className="form-grid">
@@ -127,17 +127,17 @@ function DutySubmit({ user }) {
 
           {/* Items table */}
           <div style={{ marginTop: 20, marginBottom: 8, fontWeight:700 }}>Items</div>
-          <div style={{ overflowX:'auto' }}>
+          <div className="table-scroll">
             <table className="items-table" style={{ marginBottom:0 }}>
               <thead>
                 <tr>
-                  <th style={{ width:'35%' }}>Item Name *</th>
-                  <th style={{ width:'15%' }}>Qty *</th>
-                  <th style={{ width:'20%' }}>Unit Price (RM) *</th>
-                  <th style={{ width:'14%' }}>Total (RM)</th>
-                  <th style={{ width:'16%' }}>Inventory Link</th>
-                  <th style={{ width:'12%' }}>Stock Used</th>
-                  <th style={{ width:'8%' }}></th>
+                  <th>Item Name *</th>
+                  <th>Qty *</th>
+                  <th>Unit Price (RM) *</th>
+                  <th>Total (RM)</th>
+                  <th>Inventory Link</th>
+                  <th>Stock Used</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -271,9 +271,10 @@ function DutyReview({ user }) {
         <span style={{ marginLeft:'auto', fontSize:13, color:'var(--mid)' }}>{rows.length} log(s)</span>
       </div>
 
-      <div className="card" style={{ padding:0 }}>
+      <div className="card" style={{ padding:0, maxWidth: '100%' }}>
         {loading ? <div className="empty"><div className="icon">⏳</div>Loading…</div> : (
           <>
+            <div className="table-scroll">
             <table>
               <thead>
                 <tr><th>Duty No.</th><th>Date</th><th>Submitted By</th><th>Items</th><th>Total</th><th>Att.</th><th>Status</th><th>Actions</th></tr>
@@ -309,6 +310,7 @@ function DutyReview({ user }) {
                 })}
               </tbody>
             </table>
+            </div>
             <div style={{ padding:'12px 16px' }}>
               <window.Pagination page={page} total={rows.length} perPage={PER} onChange={setPage} />
             </div>
@@ -319,13 +321,14 @@ function DutyReview({ user }) {
       {/* Detail modal */}
       {detail && (
         <window.Modal title={`Duty Log — ${detail.duty_number}`} onClose={() => setDetail(null)}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16, fontSize:13 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:10, marginBottom:16, fontSize:13 }}>
             <div><strong>Date:</strong> {detail.date}</div>
             <div><strong>Submitted by:</strong> {detail.submitted_by_name}</div>
             <div><strong>Status:</strong> <window.StatusBadge status={detail.status} /></div>
             {detail.reviewed_by_name && <div><strong>Reviewed by:</strong> {detail.reviewed_by_name}</div>}
             {detail.notes && <div style={{ gridColumn:'1/-1' }}><strong>Notes:</strong> {detail.notes}</div>}
           </div>
+          <div className="table-scroll">
           <table>
             <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
             <tbody>
@@ -345,6 +348,7 @@ function DutyReview({ user }) {
               </tr>
             </tbody>
           </table>
+          </div>
           <DutyAttachments entityId={detail.id} canManage={user.role === 'admin'} />
           {detail.status === 'pending' && (
             <div className="modal-actions">
@@ -379,10 +383,11 @@ function DutyHistory({ user }) {
 
   return (
     <div>
-      <div className="card" style={{ padding:0 }}>
+      <div className="card" style={{ padding:0, maxWidth: '100%' }}>
         {rows.length === 0 ? (
           <div className="empty"><div className="icon"></div>No duty logs submitted yet</div>
         ) : (
+          <div className="table-scroll">
           <table>
             <thead><tr><th>Duty No.</th><th>Date</th><th>Items</th><th>Total</th><th>Att.</th><th>Status</th><th></th></tr></thead>
             <tbody>
@@ -402,16 +407,18 @@ function DutyHistory({ user }) {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       {detail && (
         <window.Modal title={`Duty Log — ${detail.duty_number}`} onClose={() => setDetail(null)}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:16, fontSize:13 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2, minmax(0, 1fr))', gap:10, marginBottom:16, fontSize:13 }}>
             <div><strong>Date:</strong> {detail.date}</div>
             <div><strong>Status:</strong> <window.StatusBadge status={detail.status} /></div>
             {detail.notes && <div style={{ gridColumn:'1/-1' }}><strong>Reviewer notes:</strong> {detail.notes}</div>}
           </div>
+          <div className="table-scroll">
           <table>
             <thead><tr><th>Item</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
             <tbody>
@@ -431,6 +438,7 @@ function DutyHistory({ user }) {
               </tr>
             </tbody>
           </table>
+          </div>
           <DutyAttachments entityId={detail.id} canManage={user.role === 'admin' || user.id === detail.submitted_by} />
         </window.Modal>
       )}
