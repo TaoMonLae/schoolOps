@@ -33,6 +33,26 @@ window.Attendance = function Attendance({ user }) {
   });
   const [movementSaving, setMovementSaving] = React.useState(false);
   const [clockingInId, setClockingInId] = React.useState(null);
+  const getGpsPosition = React.useCallback(() => new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported on this device/browser.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+      }),
+      (error) => {
+        if (error.code === 1) reject(new Error('Location permission denied. Enable location and try again.'));
+        else if (error.code === 2) reject(new Error('Location unavailable. Please move to an open area and try again.'));
+        else if (error.code === 3) reject(new Error('Location request timed out. Please try again.'));
+        else reject(new Error('Unable to get current location.'));
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  }), []);
 
   const [hostelSearch, setHostelSearch] = React.useState('');
 
@@ -148,9 +168,10 @@ window.Attendance = function Attendance({ user }) {
 
     setMovementSaving(true);
     try {
+      const location = await getGpsPosition();
       await api('/api/attendance/movements/clock-out', {
         method: 'POST',
-        body: movementForm,
+        body: { ...movementForm, ...location },
       });
       showToast('Student clocked out');
       setMovementForm((prev) => ({
@@ -170,10 +191,12 @@ window.Attendance = function Attendance({ user }) {
   const handleClockIn = async (movement) => {
     setClockingInId(movement.id);
     try {
+      const location = await getGpsPosition();
       const result = await api(`/api/attendance/movements/${movement.id}/clock-in`, {
         method: 'POST',
         body: {
           return_time: toLocalDateTimeInputValue(),
+          ...location,
         },
       });
       const suffix = result.compliance_status === 'returned_late' ? ' (late return)' : '';
@@ -348,6 +371,8 @@ window.Attendance = function Attendance({ user }) {
             <div style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
               Weekdays: students may be clocked out only between 3:00 PM and 6:00 PM.
               Weekend outings require an admin to approve and record the clock-out.
+              <br />
+              GPS verification is required for clock-out and clock-in.
             </div>
           </div>
 
@@ -357,6 +382,7 @@ window.Attendance = function Attendance({ user }) {
               <div className="stat-card"><div className="stat-label">Currently Out</div><div className="stat-value stat-blue">{movementSummary.currently_out || 0}</div></div>
               <div className="stat-card"><div className="stat-label">Weekend Logs</div><div className="stat-value stat-amber">{movementSummary.weekend_logs || 0}</div></div>
               <div className="stat-card"><div className="stat-label">Late Returns</div><div className="stat-value stat-red">{movementSummary.late_returns || 0}</div></div>
+              <div className="stat-card"><div className="stat-label">Tracking Interrupted</div><div className="stat-value stat-amber">{movementSummary.interrupted_tracking || 0}</div></div>
             </div>
           )}
 
@@ -436,6 +462,15 @@ window.Attendance = function Attendance({ user }) {
                           {row.compliance_status === 'returned_on_time' && <span className="badge badge-green">Returned On Time</span>}
                           {row.compliance_status === 'returned_late' && <span className="badge badge-red">Returned Late</span>}
                           {row.approval_status === 'approved' && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>Admin approved</div>}
+                          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                            GPS Out: {row.clock_out_verified ? 'Verified' : 'Not verified'} · GPS In: {row.return_time ? (row.clock_in_verified ? 'Verified' : 'Not verified') : 'Pending'}
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                            Tracking: {row.tracking_status || 'active'}{row.tracking_last_ping_at ? ` · Last ping ${row.tracking_last_ping_at}` : ''}
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                            Pings: {row.tracking_ping_count || 0}{row.last_ping_distance_m != null ? ` · Last distance ${Number(row.last_ping_distance_m).toFixed(1)}m` : ''}
+                          </div>
                         </td>
                         <td>
                           <div>{row.destination || '—'}</div>

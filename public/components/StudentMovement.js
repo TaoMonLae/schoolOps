@@ -13,6 +13,9 @@ window.StudentMovement = function StudentMovement({ user }) {
   const [student, setStudent] = React.useState(null);
   const [activeMovement, setActiveMovement] = React.useState(null);
   const [history, setHistory] = React.useState([]);
+  const [trackingMessage, setTrackingMessage] = React.useState('');
+  const trackingIntervalRef = React.useRef(null);
+  const geolocationFailCountRef = React.useRef(0);
   const [form, setForm] = React.useState({
     leave_time: toLocalDateTimeInputValue(defaultLeaveTime),
     destination: '',
@@ -35,15 +38,101 @@ window.StudentMovement = function StudentMovement({ user }) {
 
   React.useEffect(() => { load(); }, [load]);
 
+  const getGpsPosition = React.useCallback(() => new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported on this device/browser.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => resolve({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+      }),
+      (error) => {
+        if (error.code === 1) reject(new Error('Location permission denied. Enable location and try again.'));
+        else if (error.code === 2) reject(new Error('Location unavailable. Please move to an open area and try again.'));
+        else if (error.code === 3) reject(new Error('Location request timed out. Please try again.'));
+        else reject(new Error('Unable to get current location.'));
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+    );
+  }), []);
+
+  const updateTrackingStatus = React.useCallback(async (movementId, status) => {
+    try {
+      await api(`/api/attendance/movements/self/${movementId}/tracking-status`, {
+        method: 'POST',
+        body: { status },
+      });
+    } catch (err) {
+      // best effort status update
+    }
+  }, []);
+
+  const sendLocationPing = React.useCallback(async (movementId) => {
+    try {
+      const location = await getGpsPosition();
+      geolocationFailCountRef.current = 0;
+      await api(`/api/attendance/movements/self/${movementId}/ping`, {
+        method: 'POST',
+        body: location,
+      });
+      setTrackingMessage('Tracking active. Location updates are best-effort while this page stays open.');
+      await updateTrackingStatus(movementId, 'active');
+    } catch (err) {
+      geolocationFailCountRef.current += 1;
+      if (geolocationFailCountRef.current >= 2) {
+        await updateTrackingStatus(movementId, 'interrupted');
+        setTrackingMessage('Tracking interrupted. Keep this page open and location on to resume updates.');
+      }
+    }
+  }, [getGpsPosition, updateTrackingStatus]);
+
+  React.useEffect(() => {
+    if (trackingIntervalRef.current) {
+      clearInterval(trackingIntervalRef.current);
+      trackingIntervalRef.current = null;
+    }
+    if (!activeMovement || !activeMovement.id || activeMovement.return_time) return undefined;
+
+    setTrackingMessage('Tracking active. Location updates are best-effort while this page stays open.');
+    sendLocationPing(activeMovement.id);
+    trackingIntervalRef.current = setInterval(() => {
+      sendLocationPing(activeMovement.id);
+    }, 10 * 60 * 1000);
+
+    const onVisibilityChange = async () => {
+      if (document.hidden) {
+        setTrackingMessage('Tracking may stop while app/browser is in background.');
+        await updateTrackingStatus(activeMovement.id, 'interrupted');
+      } else {
+        setTrackingMessage('Tracking active. Location updates are best-effort while this page stays open.');
+        await sendLocationPing(activeMovement.id);
+      }
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (trackingIntervalRef.current) {
+        clearInterval(trackingIntervalRef.current);
+        trackingIntervalRef.current = null;
+      }
+    };
+  }, [activeMovement, sendLocationPing, updateTrackingStatus]);
+
   const handleClockOut = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const location = await getGpsPosition();
       await api('/api/attendance/movements/self/clock-out', {
         method: 'POST',
-        body: form,
+        body: { ...form, ...location },
       });
       showToast('Clock-out recorded');
+      setTrackingMessage('Tracking active. Location updates are best-effort while this page stays open.');
       setForm((prev) => ({ ...prev, destination: '', reason: '' }));
       load();
     } catch (err) {
@@ -57,11 +146,13 @@ window.StudentMovement = function StudentMovement({ user }) {
     if (!activeMovement) return;
     setClockingIn(true);
     try {
+      const location = await getGpsPosition();
       const result = await api(`/api/attendance/movements/self/${activeMovement.id}/clock-in`, {
         method: 'POST',
-        body: { return_time: toLocalDateTimeInputValue() },
+        body: { return_time: toLocalDateTimeInputValue(), ...location },
       });
       showToast(result.compliance_status === 'returned_late' ? 'Clock-in recorded. You returned late.' : 'Clock-in recorded');
+      setTrackingMessage('');
       load();
     } catch (err) {
       showToast(err.message, 'error');
@@ -80,6 +171,12 @@ window.StudentMovement = function StudentMovement({ user }) {
         <div className="card-title">Student Out / In</div>
         <div style={{ color: 'var(--muted)', lineHeight: 1.6 }}>
           Weekday self clock-out is available from 3:00 PM to 6:00 PM. Weekend outings must be approved and recorded by an admin.
+          <br />
+          Clock Out / In works only when you are at school and location is turned on.
+          <br />
+          Location tracking continues while this page stays open.
+          <br />
+          If you close the page or your browser stops tracking, staff may need to review your outing.
         </div>
       </div>
 
@@ -119,6 +216,13 @@ window.StudentMovement = function StudentMovement({ user }) {
                 <div style={{ marginBottom: 12, color: 'var(--muted)' }}>
                   Expected return time: {activeMovement.expected_return_time}
                 </div>
+              )}
+              <div style={{ marginBottom: 12, color: 'var(--muted)' }}>
+                Tracking status: <strong>{activeMovement.tracking_status || 'active'}</strong>
+                {activeMovement.tracking_last_ping_at ? ` · Last ping: ${activeMovement.tracking_last_ping_at}` : ' · No pings yet'}
+              </div>
+              {trackingMessage && (
+                <div style={{ marginBottom: 12, color: 'var(--muted)' }}>{trackingMessage}</div>
               )}
               <button className="btn btn-primary" onClick={handleClockIn} disabled={clockingIn}>
                 {clockingIn ? 'Saving…' : 'Clock In'}
@@ -174,6 +278,7 @@ window.StudentMovement = function StudentMovement({ user }) {
                   <th>Return Time</th>
                   <th>Type</th>
                   <th>Status</th>
+                  <th>GPS Verification</th>
                   <th>Destination / Reason</th>
                 </tr>
               </thead>
@@ -189,6 +294,10 @@ window.StudentMovement = function StudentMovement({ user }) {
                       {row.compliance_status === 'returned_late' && <span className="badge badge-red">Returned Late</span>}
                     </td>
                     <td>
+                      <div>Out: {row.clock_out_verified ? 'Verified' : 'Not verified'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>In: {row.return_time ? (row.clock_in_verified ? 'Verified' : 'Not verified') : 'Pending'}</div>
+                    </td>
+                    <td>
                       <div>{row.destination || '—'}</div>
                       <div style={{ fontSize: 12, color: 'var(--muted)' }}>{row.reason || 'No reason recorded'}</div>
                     </td>
@@ -196,7 +305,7 @@ window.StudentMovement = function StudentMovement({ user }) {
                 ))}
                 {!history.length && (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>No movement records yet.</td>
+                    <td colSpan="6" style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>No movement records yet.</td>
                   </tr>
                 )}
               </tbody>

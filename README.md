@@ -161,6 +161,10 @@ JWT_SECRET=replace_with_a_long_random_secret
 DB_PATH=/var/lib/school-ledger/ledger.sqlite
 UPLOAD_DIR=/var/lib/school-ledger/uploads
 BACKUP_DIR=/var/backups/school-ledger
+SCHOOL_LAT=3.135142303974718
+SCHOOL_LNG=101.7173772766529
+SCHOOL_GEOFENCE_RADIUS_M=100
+MAX_LOCATION_ACCURACY_M=80
 ```
 
 ---

@@ -2,6 +2,7 @@ const express = require('express');
 const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { resolveStudentForRequest } = require('../services/studentIdentity');
+const { parseLocationPayload, evaluateLocationAgainstSchool } = require('../services/movementGps');
 
 const router = express.Router();
 const VALID_STATUSES = ['present', 'absent', 'late', 'excused'];
@@ -58,9 +59,13 @@ function weekdayCurfewDateTime(dateValue) {
 }
 
 function serializeMovement(row) {
+  const now = Date.now();
+  const lastPingTs = row.tracking_last_ping_at ? Date.parse(row.tracking_last_ping_at.replace(' ', 'T')) : NaN;
+  const likelyInterrupted = Number.isFinite(lastPingTs) && !row.return_time && (now - lastPingTs) > (12 * 60 * 1000);
   return {
     ...row,
     is_open: !row.return_time,
+    tracking_likely_interrupted: likelyInterrupted,
   };
 }
 
@@ -93,12 +98,16 @@ function createMovementLog({
   approvedBy,
   approvedAt,
   recordedOutBy,
+  location,
+  locationEvaluation,
 }) {
   return db.prepare(`
     INSERT INTO student_movement_logs (
       student_id, leave_time, destination, reason, day_type, approval_status,
-      expected_return_time, compliance_status, approved_by, approved_at, recorded_out_by
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'out', ?, ?, ?)
+      expected_return_time, compliance_status, approved_by, approved_at, recorded_out_by,
+      clock_out_lat, clock_out_lng, clock_out_accuracy, clock_out_distance_m,
+      clock_out_verified, clock_out_verified_at, tracking_status, tracking_last_ping_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'out', ?, ?, ?, ?, ?, ?, ?, 1, ?, 'active', ?)
   `).run(
     studentId,
     leaveTimeText,
@@ -110,7 +119,26 @@ function createMovementLog({
     approvedBy,
     approvedAt,
     recordedOutBy,
+    location.lat,
+    location.lng,
+    location.accuracy,
+    locationEvaluation.distanceMeters,
+    leaveTimeText,
+    leaveTimeText,
   );
+}
+
+function validateSchoolLocation(payload) {
+  const parsed = parseLocationPayload(payload);
+  if (!parsed.ok) return { ok: false, status: 400, error: parsed.error };
+  const evaluation = evaluateLocationAgainstSchool(parsed.location);
+  if (!evaluation.accuracyAcceptable) {
+    return { ok: false, status: 400, error: `Location accuracy is too low. Accuracy must be within ${evaluation.maxAccuracyMeters} meters.` };
+  }
+  if (!evaluation.insideGeofence) {
+    return { ok: false, status: 403, error: `You must be within ${evaluation.geofenceRadiusMeters} meters of school to perform this action.` };
+  }
+  return { ok: true, location: parsed.location, evaluation };
 }
 
 function parseMonthYear(req) {
@@ -366,7 +394,19 @@ router.get('/movements', requireAuth, requireRole('admin', 'teacher'), (req, res
       s.bed_number,
       out_user.name AS recorded_out_by_name,
       in_user.name AS recorded_in_by_name,
-      appr_user.name AS approved_by_name
+      appr_user.name AS approved_by_name,
+      (
+        SELECT COUNT(*)
+        FROM student_movement_tracking_pings smtp
+        WHERE smtp.movement_id = sml.id
+      ) AS tracking_ping_count,
+      (
+        SELECT smtp.distance_m
+        FROM student_movement_tracking_pings smtp
+        WHERE smtp.movement_id = sml.id
+        ORDER BY smtp.ping_time DESC, smtp.id DESC
+        LIMIT 1
+      ) AS last_ping_distance_m
     FROM student_movement_logs sml
     JOIN students s ON s.id = sml.student_id
     LEFT JOIN users out_user ON out_user.id = sml.recorded_out_by
@@ -382,7 +422,8 @@ router.get('/movements', requireAuth, requireRole('admin', 'teacher'), (req, res
       COUNT(*) AS total_logs,
       SUM(CASE WHEN return_time IS NULL THEN 1 ELSE 0 END) AS currently_out,
       SUM(CASE WHEN day_type = 'weekend' THEN 1 ELSE 0 END) AS weekend_logs,
-      SUM(CASE WHEN compliance_status = 'returned_late' THEN 1 ELSE 0 END) AS late_returns
+      SUM(CASE WHEN compliance_status = 'returned_late' THEN 1 ELSE 0 END) AS late_returns,
+      SUM(CASE WHEN tracking_status = 'interrupted' AND return_time IS NULL THEN 1 ELSE 0 END) AS interrupted_tracking
     FROM student_movement_logs
     WHERE date(leave_time) = ?
   `).get(targetDate);
@@ -398,7 +439,33 @@ router.get('/movements/self', requireAuth, requireRole('student'), (req, res) =>
 
   const rows = db.prepare(`
     SELECT
-      sml.*,
+      sml.id,
+      sml.student_id,
+      sml.leave_time,
+      sml.return_time,
+      sml.destination,
+      sml.reason,
+      sml.day_type,
+      sml.approval_status,
+      sml.expected_return_time,
+      sml.compliance_status,
+      sml.approved_by,
+      sml.approved_at,
+      sml.recorded_out_by,
+      sml.recorded_in_by,
+      sml.clock_out_verified,
+      sml.clock_out_verified_at,
+      sml.clock_out_distance_m,
+      sml.clock_in_verified,
+      sml.clock_in_verified_at,
+      sml.clock_in_distance_m,
+      sml.tracking_status,
+      sml.tracking_last_ping_at,
+      (
+        SELECT COUNT(*)
+        FROM student_movement_tracking_pings smtp
+        WHERE smtp.movement_id = sml.id
+      ) AS tracking_ping_count,
       out_user.name AS recorded_out_by_name,
       in_user.name AS recorded_in_by_name,
       appr_user.name AS approved_by_name
@@ -435,6 +502,8 @@ router.post('/movements/clock-out', requireAuth, requireRole('admin', 'teacher')
   const dayType = getDayType(leaveTime);
   const destination = req.body.destination ? req.body.destination.toString().trim() : null;
   const reason = req.body.reason ? req.body.reason.toString().trim() : null;
+  const locationValidation = validateSchoolLocation(req.body);
+  if (!locationValidation.ok) return res.status(locationValidation.status).json({ error: locationValidation.error });
 
   let approvalStatus = 'not_required';
   let expectedReturnTime = null;
@@ -467,6 +536,8 @@ router.post('/movements/clock-out', requireAuth, requireRole('admin', 'teacher')
     approvedBy,
     approvedAt,
     recordedOutBy: req.user.id,
+    location: locationValidation.location,
+    locationEvaluation: locationValidation.evaluation,
   });
 
   audit(req.user.id, 'CLOCK_OUT', 'student_movement_logs', result.lastInsertRowid, `Clocked out ${student.name}`);
@@ -495,6 +566,8 @@ router.post('/movements/self/clock-out', requireAuth, requireRole('student'), (r
   if (leaveMinutes < WEEKDAY_CURFEW_START_MINUTES || leaveMinutes > WEEKDAY_CURFEW_END_MINUTES) {
     return res.status(400).json({ error: 'Weekday clock-out is available only between 3:00 PM and 6:00 PM' });
   }
+  const locationValidation = validateSchoolLocation(req.body);
+  if (!locationValidation.ok) return res.status(locationValidation.status).json({ error: locationValidation.error });
 
   const destination = req.body.destination ? req.body.destination.toString().trim() : null;
   const reason = req.body.reason ? req.body.reason.toString().trim() : null;
@@ -511,6 +584,8 @@ router.post('/movements/self/clock-out', requireAuth, requireRole('student'), (r
     approvedBy: null,
     approvedAt: null,
     recordedOutBy: req.user.id,
+    location: locationValidation.location,
+    locationEvaluation: locationValidation.evaluation,
   });
 
   audit(req.user.id, 'CLOCK_OUT_SELF', 'student_movement_logs', result.lastInsertRowid, `Self clock-out for ${student.name}`);
@@ -532,6 +607,8 @@ router.post('/movements/:id(\\d+)/clock-in', requireAuth, requireRole('admin', '
   const returnTimeText = normalizeDateTime(req.body.return_time) || formatDateTime(new Date());
   const returnTime = parseStoredDateTime(returnTimeText);
   const leaveTime = parseStoredDateTime(movement.leave_time);
+  const locationValidation = validateSchoolLocation(req.body);
+  if (!locationValidation.ok) return res.status(locationValidation.status).json({ error: locationValidation.error });
   if (!returnTime) return res.status(400).json({ error: 'Valid return_time is required' });
   if (leaveTime && returnTime < leaveTime) {
     return res.status(400).json({ error: 'Return time cannot be earlier than leave time' });
@@ -545,9 +622,21 @@ router.post('/movements/:id(\\d+)/clock-in', requireAuth, requireRole('admin', '
 
   db.prepare(`
     UPDATE student_movement_logs
-    SET return_time = ?, compliance_status = ?, recorded_in_by = ?, updated_at = datetime('now')
+    SET return_time = ?, compliance_status = ?, recorded_in_by = ?, tracking_status = 'completed',
+        clock_in_lat = ?, clock_in_lng = ?, clock_in_accuracy = ?, clock_in_distance_m = ?,
+        clock_in_verified = 1, clock_in_verified_at = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(returnTimeText, complianceStatus, req.user.id, movementId);
+  `).run(
+    returnTimeText,
+    complianceStatus,
+    req.user.id,
+    locationValidation.location.lat,
+    locationValidation.location.lng,
+    locationValidation.location.accuracy,
+    locationValidation.evaluation.distanceMeters,
+    returnTimeText,
+    movementId,
+  );
 
   audit(req.user.id, 'CLOCK_IN', 'student_movement_logs', movementId, `Clocked in ${movement.student_name}`);
   res.json({ ok: true, compliance_status: complianceStatus });
@@ -572,6 +661,8 @@ router.post('/movements/self/:id(\\d+)/clock-in', requireAuth, requireRole('stud
   const returnTimeText = normalizeDateTime(req.body.return_time) || formatDateTime(new Date());
   const returnTime = parseStoredDateTime(returnTimeText);
   const leaveTime = parseStoredDateTime(movement.leave_time);
+  const locationValidation = validateSchoolLocation(req.body);
+  if (!locationValidation.ok) return res.status(locationValidation.status).json({ error: locationValidation.error });
   if (!returnTime) return res.status(400).json({ error: 'Valid return_time is required' });
   if (leaveTime && returnTime < leaveTime) {
     return res.status(400).json({ error: 'Return time cannot be earlier than leave time' });
@@ -585,12 +676,95 @@ router.post('/movements/self/:id(\\d+)/clock-in', requireAuth, requireRole('stud
 
   db.prepare(`
     UPDATE student_movement_logs
-    SET return_time = ?, compliance_status = ?, recorded_in_by = ?, updated_at = datetime('now')
+    SET return_time = ?, compliance_status = ?, recorded_in_by = ?, tracking_status = 'completed',
+        clock_in_lat = ?, clock_in_lng = ?, clock_in_accuracy = ?, clock_in_distance_m = ?,
+        clock_in_verified = 1, clock_in_verified_at = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(returnTimeText, complianceStatus, req.user.id, movementId);
+  `).run(
+    returnTimeText,
+    complianceStatus,
+    req.user.id,
+    locationValidation.location.lat,
+    locationValidation.location.lng,
+    locationValidation.location.accuracy,
+    locationValidation.evaluation.distanceMeters,
+    returnTimeText,
+    movementId,
+  );
 
   audit(req.user.id, 'CLOCK_IN_SELF', 'student_movement_logs', movementId, `Self clock-in for ${student.name}`);
   res.json({ ok: true, compliance_status: complianceStatus });
+});
+
+router.post('/movements/self/:id(\\d+)/ping', requireAuth, requireRole('student'), (req, res) => {
+  const resolved = resolveStudentForRequest(req);
+  if (!resolved.ok) return res.status(resolved.status).json({ error: resolved.error });
+  const student = resolved.student;
+  if (!student) return res.status(404).json({ error: 'No student profile is linked to this account' });
+
+  const movementId = Number.parseInt(req.params.id, 10);
+  const movement = db.prepare(`
+    SELECT id, student_id, return_time
+    FROM student_movement_logs
+    WHERE id = ? AND student_id = ? AND return_time IS NULL
+  `).get(movementId, student.id);
+  if (!movement) return res.status(404).json({ error: 'Active movement record not found for this student' });
+
+  const parsed = parseLocationPayload(req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  const evaluation = evaluateLocationAgainstSchool(parsed.location);
+  if (!evaluation.accuracyAcceptable) {
+    return res.status(400).json({ error: `Location accuracy is too low. Accuracy must be within ${evaluation.maxAccuracyMeters} meters.` });
+  }
+
+  const pingTime = formatDateTime(new Date());
+  db.prepare(`
+    INSERT INTO student_movement_tracking_pings (movement_id, ping_time, lat, lng, accuracy, distance_m, source)
+    VALUES (?, ?, ?, ?, ?, ?, 'gps_ping')
+  `).run(
+    movement.id,
+    pingTime,
+    parsed.location.lat,
+    parsed.location.lng,
+    parsed.location.accuracy,
+    evaluation.distanceMeters,
+  );
+
+  db.prepare(`
+    UPDATE student_movement_logs
+    SET tracking_last_ping_at = ?, tracking_status = 'active', updated_at = datetime('now')
+    WHERE id = ?
+  `).run(pingTime, movement.id);
+
+  res.json({ ok: true, ping_time: pingTime, distance_m: evaluation.distanceMeters });
+});
+
+router.post('/movements/self/:id(\\d+)/tracking-status', requireAuth, requireRole('student'), (req, res) => {
+  const resolved = resolveStudentForRequest(req);
+  if (!resolved.ok) return res.status(resolved.status).json({ error: resolved.error });
+  const student = resolved.student;
+  if (!student) return res.status(404).json({ error: 'No student profile is linked to this account' });
+
+  const movementId = Number.parseInt(req.params.id, 10);
+  const movement = db.prepare(`
+    SELECT id, return_time
+    FROM student_movement_logs
+    WHERE id = ? AND student_id = ? AND return_time IS NULL
+  `).get(movementId, student.id);
+  if (!movement) return res.status(404).json({ error: 'Active movement record not found for this student' });
+
+  const requestedStatus = (req.body.status || '').toString().trim();
+  if (!['active', 'interrupted'].includes(requestedStatus)) {
+    return res.status(400).json({ error: 'Invalid tracking status update' });
+  }
+
+  db.prepare(`
+    UPDATE student_movement_logs
+    SET tracking_status = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(requestedStatus, movement.id);
+
+  res.json({ ok: true, tracking_status: requestedStatus });
 });
 
 router.put('/hostel/:studentId(\\d+)', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
