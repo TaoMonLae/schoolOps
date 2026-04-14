@@ -25,8 +25,9 @@ function buildArrearsRecords(month, year, opts = {}) {
   const { activeOnly = false } = opts;
 
   const students = db.prepare(`
-    SELECT s.*
+    SELECT s.*, u.username AS linked_username, u.is_active AS linked_user_active, u.login_disabled AS linked_login_disabled
     FROM students s
+    LEFT JOIN users u ON u.id = s.user_id
     ${activeOnly ? "WHERE s.status = 'active'" : ''}
     ORDER BY s.name
   `).all();

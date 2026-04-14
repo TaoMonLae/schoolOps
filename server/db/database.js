@@ -233,6 +233,13 @@ function runMigrations() {
   if (!columnExists('students', 'user_id')) {
     db.exec('ALTER TABLE students ADD COLUMN user_id INTEGER REFERENCES users(id)');
   }
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_students_user_id_unique
+    ON students(user_id)
+    WHERE user_id IS NOT NULL
+  `);
+
   if (!columnExists('students', 'room')) {
     db.exec('ALTER TABLE students ADD COLUMN room TEXT');
   }

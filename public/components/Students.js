@@ -116,6 +116,33 @@ window.Students = function Students({ user }) {
     } catch (e) { showToast(e.message, 'error'); }
   };
 
+  const createStudentLogin = async (s) => {
+    if (!isAdmin) return;
+    if (!confirm2(`Create linked login for ${s.name}?`)) return;
+    try {
+      const result = await api(`/api/students/${s.id}/create-login`, { method: 'POST' });
+      window.alert(`Login created for ${s.name}
+Username: ${result.username}
+Temporary password: ${result.temporary_password}
+Student must change password at first login.`);
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
+  const unlinkStudentLogin = async (s) => {
+    if (!isAdmin || !s.user_id) return;
+    if (!confirm2(`Unlink login account from ${s.name}?`)) return;
+    try {
+      await api(`/api/students/${s.id}/unlink-login`, { method: 'POST' });
+      showToast('Student login unlinked');
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
   const openHistory = async (s) => {
     try {
       const data = await api(`/api/fees/student/${s.id}`);
@@ -270,14 +297,14 @@ window.Students = function Students({ user }) {
                 <tr>
                   <th>Name</th><th>Level</th><th>Gender</th>
                   <th>Main Contact</th>
-                  <th>Fee</th><th>Hostel</th><th>Status</th>
+                  <th>Fee</th><th>Hostel</th><th>Status</th><th>Login</th>
                   <th>{window.MONTHS[month-1]} {year}</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {paged.length === 0 ? (
-                  <tr><td colSpan={9}><window.StatePanel type="empty"  message="No students found" compact /></td></tr>
+                  <tr><td colSpan={10}><window.StatePanel type="empty"  message="No students found" compact /></td></tr>
                 ) : paged.map(s => (
                   <tr key={s.id}>
                     <td><strong>{s.name}</strong></td>
@@ -296,6 +323,13 @@ window.Students = function Students({ user }) {
                     <td><window.StatusBadge status={s.hostel_status || 'non_boarder'} /></td>
                     <td><window.StatusBadge status={s.status} /></td>
                     <td>
+                      {s.user_id ? (
+                        <span className="badge badge-green">Linked ({s.linked_username || `user#${s.user_id}`})</span>
+                      ) : (
+                        <span className="badge badge-gray">No Login</span>
+                      )}
+                    </td>
+                    <td>
                       {s.status !== 'active'
                         ? <span className="badge badge-gray">N/A</span>
                         : <window.StatusBadge status={s.current_month_status} />
@@ -306,6 +340,12 @@ window.Students = function Students({ user }) {
                         {isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>Edit️</button>}
                         <button className="btn btn-secondary btn-sm" onClick={() => openContacts(s)} title="Manage contacts"></button>
                         <button className="btn btn-secondary btn-sm" onClick={() => openHistory(s)}></button>
+                        {isAdmin && !s.user_id && s.status === 'active' && (
+                          <button className="btn btn-secondary btn-sm" onClick={() => createStudentLogin(s)} title="Create linked login">Create Login</button>
+                        )}
+                        {isAdmin && s.user_id && (
+                          <button className="btn btn-secondary btn-sm" onClick={() => unlinkStudentLogin(s)} title="Unlink login">Unlink</button>
+                        )}
                         {isAdmin && s.status === 'active' && (
                           <button className="btn btn-danger btn-sm" onClick={() => handleDeactivate(s)} title="Deactivate student">⊘</button>
                         )}

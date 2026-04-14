@@ -1,6 +1,7 @@
 const express = require('express');
 const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { resolveStudentForRequest } = require('../services/studentIdentity');
 const { recordStockMovement, deleteStockMovementsByReference } = require('../services/inventory');
 const { createNotification, createNotificationsForRoles } = require('../services/notifications');
 
@@ -69,6 +70,8 @@ function reverseUsageForLog(logId) {
 router.get('/', requireAuth, (req, res) => {
   let rows;
   if (req.user.role === 'student') {
+    const resolved = resolveStudentForRequest(req);
+    if (!resolved.ok) return res.status(resolved.status).json({ error: resolved.error });
     rows = db.prepare(`
       SELECT dl.*, u.name AS submitted_by_name, rv.name AS reviewed_by_name,
              COALESCE(att.attachment_count, 0) AS attachment_count
@@ -162,6 +165,10 @@ router.get('/:id', requireAuth, (req, res) => {
 
 // POST /api/duty — submit (student or admin/teacher on behalf)
 router.post('/', requireAuth, (req, res) => {
+  if (req.user.role === 'student') {
+    const resolved = resolveStudentForRequest(req);
+    if (!resolved.ok) return res.status(resolved.status).json({ error: resolved.error });
+  }
   const { duty_number, date, items, notes } = req.body;
   if (!duty_number || !date || !Array.isArray(items) || !items.length)
     return res.status(400).json({ error: 'duty_number, date, and at least one item required' });

@@ -1,6 +1,7 @@
 const express = require('express');
 const PDFDoc = require('pdfkit');
 const XLSX = require('xlsx');
+const bcrypt = require('bcryptjs');
 const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { buildArrearsRecords } = require('../services/arrears');
@@ -548,5 +549,84 @@ router.delete('/:id(\\d+)/permanent', requireAuth, requireRole('admin'), (req, r
   audit(req.user.id, 'DELETE', 'students', req.params.id, `Permanently deleted student "${student.name}"`);
   res.json({ ok: true });
 });
+
+
+function slugUsername(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '.')
+    .replace(/^\.+|\.+$/g, '')
+    .slice(0, 32);
+}
+
+function generateUniqueStudentUsername(student) {
+  const baseRaw = slugUsername(student.name) || `student.${student.id}`;
+  const base = `stu.${baseRaw}`.slice(0, 42);
+  let candidate = base;
+  let counter = 1;
+  while (db.prepare('SELECT id FROM users WHERE username = ?').get(candidate)) {
+    counter += 1;
+    candidate = `${base}.${counter}`.slice(0, 48);
+  }
+  return candidate;
+}
+
+function generateTempPassword() {
+  return `Stu!${Math.random().toString(36).slice(-6)}${Math.floor(10 + (Math.random() * 89))}`;
+}
+
+// POST /api/students/:id/create-login
+router.post('/:id(\\d+)/create-login', requireAuth, requireRole('admin'), (req, res) => {
+  const studentId = Number.parseInt(req.params.id, 10);
+  const student = db.prepare('SELECT id, name, user_id FROM students WHERE id = ?').get(studentId);
+  if (!student) return res.status(404).json({ error: 'Student not found' });
+  if (student.user_id) return res.status(409).json({ error: 'Student already has a linked login account' });
+
+  const username = generateUniqueStudentUsername(student);
+  const tempPassword = generateTempPassword();
+  const passwordHash = bcrypt.hashSync(tempPassword, 10);
+
+  const tx = db.transaction(() => {
+    const userResult = db.prepare(`
+      INSERT INTO users (name, username, password_hash, role, is_active, login_disabled, must_change_password)
+      VALUES (?, ?, ?, 'student', 1, 0, 1)
+    `).run(student.name, username, passwordHash);
+
+    const userId = Number(userResult.lastInsertRowid);
+    db.prepare('UPDATE students SET user_id = ? WHERE id = ? AND user_id IS NULL').run(userId, student.id);
+    return userId;
+  });
+
+  try {
+    const userId = tx();
+    audit(req.user.id, 'CREATE_STUDENT_LOGIN', 'students', student.id, `Created linked student login for ${student.name}`);
+    return res.status(201).json({
+      ok: true,
+      student_id: student.id,
+      user_id: userId,
+      username,
+      temporary_password: tempPassword,
+      must_change_password: true,
+    });
+  } catch (err) {
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      return res.status(409).json({ error: 'Unable to create linked account due to uniqueness conflict' });
+    }
+    throw err;
+  }
+});
+
+// POST /api/students/:id/unlink-login
+router.post('/:id(\\d+)/unlink-login', requireAuth, requireRole('admin'), (req, res) => {
+  const studentId = Number.parseInt(req.params.id, 10);
+  const student = db.prepare('SELECT id, name, user_id FROM students WHERE id = ?').get(studentId);
+  if (!student) return res.status(404).json({ error: 'Student not found' });
+  if (!student.user_id) return res.status(400).json({ error: 'Student has no linked login account' });
+
+  db.prepare('UPDATE students SET user_id = NULL WHERE id = ?').run(studentId);
+  audit(req.user.id, 'UNLINK_STUDENT_LOGIN', 'students', student.id, `Unlinked login account from ${student.name}`);
+  res.json({ ok: true });
+});
+
 
 module.exports = router;
