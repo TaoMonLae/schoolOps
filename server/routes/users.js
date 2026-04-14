@@ -102,7 +102,7 @@ router.get('/', requireAuth, requireRole('admin'), (req, res) => {
       s.level AS linked_student_level
     FROM users u
     LEFT JOIN students s ON s.user_id = u.id
-    ORDER BY id ASC
+    ORDER BY u.id ASC
   `).all();
   res.json(users.map((row) => ({
     ...row,
@@ -253,12 +253,22 @@ router.put('/:id', requireAuth, requireRole('admin'), (req, res) => {
 
   const { name, username, role, is_active, login_disabled, student_id } = req.body;
 
+  if (name !== undefined) {
+    if (!String(name).trim()) return res.status(400).json({ error: 'Name cannot be empty' });
+    if (String(name).trim().length > 150) return res.status(400).json({ error: 'Name must be 150 characters or fewer' });
+  }
+  if (username !== undefined) {
+    if (!String(username).trim()) return res.status(400).json({ error: 'Username cannot be empty' });
+    if (String(username).trim().length > 50) return res.status(400).json({ error: 'Username must be 50 characters or fewer' });
+  }
+
   if (role && !['admin', 'teacher', 'student'].includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
 
-  if (username && username !== existing.username) {
-    const clash = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, userId);
+  const nextUsername = username ? String(username).trim() : existing.username;
+  if (nextUsername !== existing.username) {
+    const clash = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(nextUsername, userId);
     if (clash) return res.status(409).json({ error: 'Username already exists' });
   }
 
@@ -305,7 +315,7 @@ router.put('/:id', requireAuth, requireRole('admin'), (req, res) => {
       WHERE id = ?
     `).run(
       name ? name.trim() : null,
-      username ? username.trim() : null,
+      username ? nextUsername : null,
       role || null,
       activeFlag,
       loginDisabledFlag,

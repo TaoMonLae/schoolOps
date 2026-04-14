@@ -132,6 +132,9 @@ function validateSchoolLocation(payload) {
   const parsed = parseLocationPayload(payload);
   if (!parsed.ok) return { ok: false, status: 400, error: parsed.error };
   const evaluation = evaluateLocationAgainstSchool(parsed.location);
+  if (evaluation.configError) {
+    return { ok: false, status: 503, error: evaluation.error };
+  }
   if (!evaluation.accuracyAcceptable) {
     return { ok: false, status: 400, error: `Location accuracy is too low. Accuracy must be within ${evaluation.maxAccuracyMeters} meters.` };
   }
@@ -150,9 +153,9 @@ function parseMonthYear(req) {
 
 function parseDateRange(req) {
   const now = new Date();
-  const defaultStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const from = normalizeDate(req.query.from) || defaultStart.toISOString().slice(0, 10);
-  const to = normalizeDate(req.query.to) || now.toISOString().slice(0, 10);
+  const defaultStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const from = normalizeDate(req.query.from) || formatDateForStorage(defaultStart);
+  const to = normalizeDate(req.query.to) || formatDateForStorage(now);
   return { from, to };
 }
 
@@ -171,7 +174,7 @@ function attendancePercentage(studentId, from, to) {
 }
 
 router.get('/today-summary', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = formatDateForStorage(new Date());
 
   const totals = db.prepare(`
     SELECT
@@ -227,7 +230,7 @@ router.get('/today-summary', requireAuth, requireRole('admin', 'teacher'), (req,
 });
 
 router.get('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const targetDate = normalizeDate(req.query.date) || new Date().toISOString().slice(0, 10);
+  const targetDate = normalizeDate(req.query.date) || formatDateForStorage(new Date());
   const boarderFilter = (req.query.boarder || 'all').toString();
 
   let boarderWhere = '';
@@ -713,6 +716,9 @@ router.post('/movements/self/:id(\\d+)/ping', requireAuth, requireRole('student'
   const parsed = parseLocationPayload(req.body);
   if (!parsed.ok) return res.status(400).json({ error: parsed.error });
   const evaluation = evaluateLocationAgainstSchool(parsed.location);
+  if (evaluation.configError) {
+    return res.status(503).json({ error: evaluation.error });
+  }
   if (!evaluation.accuracyAcceptable) {
     return res.status(400).json({ error: `Location accuracy is too low. Accuracy must be within ${evaluation.maxAccuracyMeters} meters.` });
   }
@@ -802,7 +808,7 @@ router.put('/hostel/:studentId(\\d+)', requireAuth, requireRole('admin', 'teache
 router.get('/export/monthly', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   const { month, year } = parseMonthYear(req);
   const start = `${year}-${String(month).padStart(2, '0')}-01`;
-  const end = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+  const end = `${year}-${String(month).padStart(2, '0')}-${String(new Date(year, month, 0).getDate()).padStart(2, '0')}`;
 
   const rows = db.prepare(`
     SELECT
