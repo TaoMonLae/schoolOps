@@ -2,8 +2,13 @@
 
 // API wrapper
 window.api = async function(path, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const csrf = ['GET', 'HEAD', 'OPTIONS'].includes(method)
+    ? {}
+    : (window.csrfHeaders?.() || { 'X-CSRF-Token': document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '' });
+
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...csrf, ...(options.headers || {}) },
     credentials: 'include',
     ...options,
     body: options.body ? JSON.stringify(options.body) : undefined,
@@ -19,7 +24,13 @@ window.api = async function(path, options = {}) {
 
 // API wrapper for multipart/form-data
 window.apiFormData = async function(path, formData, options = {}) {
+  const method = (options.method || 'POST').toUpperCase();
+  const csrf = ['GET', 'HEAD', 'OPTIONS'].includes(method)
+    ? {}
+    : (window.csrfHeaders?.() || { 'X-CSRF-Token': document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '' });
+
   const res = await fetch(path, {
+    headers: { ...csrf, ...(options.headers || {}) },
     credentials: 'include',
     ...options,
     body: formData,

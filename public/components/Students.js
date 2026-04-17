@@ -386,6 +386,7 @@ window.Students = function Students({ user }) {
       formData.append('file', file);
       const res = await fetch('/api/students/import', {
         method: 'POST',
+        headers: { ...(window.csrfHeaders?.() || { 'X-CSRF-Token': document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '' }) },
         credentials: 'include',
         body: formData,
       });
