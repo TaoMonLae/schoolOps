@@ -51,13 +51,13 @@ router.post('/:entityType/:entityId', requireAuth, multipartUpload({ fileField: 
   if (!file) return res.status(400).json({ error: 'No file uploaded' });
 
   try {
-    const { storedName, cleanedOriginalName } = writeAttachmentFile(entityType, file.originalname, file.mimetype, file.buffer);
+    const { storedName, cleanedOriginalName, mimeType } = writeAttachmentFile(entityType, file.originalname, file.mimetype, file.buffer);
 
     const result = db.prepare(`
       INSERT INTO attachments (
         entity_type, entity_id, original_name, stored_name, mime_type, file_size, uploaded_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(entityType, entityId, cleanedOriginalName, storedName, file.mimetype, file.size, req.user.id);
+    `).run(entityType, entityId, cleanedOriginalName, storedName, mimeType, file.size, req.user.id);
 
     audit(req.user.id, 'CREATE', 'attachments', result.lastInsertRowid, `Uploaded ${entityType} attachment ${cleanedOriginalName}`);
     return res.status(201).json({ id: result.lastInsertRowid });
@@ -110,7 +110,8 @@ router.get('/:entityType/:entityId/:attachmentId/download', requireAuth, (req, r
 
   const safeName = sanitizeFilename(attachment.original_name);
   res.setHeader('Content-Type', attachment.mime_type || 'application/octet-stream');
-  res.setHeader('Content-Disposition', `inline; filename="${safeName}"`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeName}"`);
   return res.sendFile(path.resolve(filePath));
 });
 
