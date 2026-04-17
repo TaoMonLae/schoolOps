@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { createNotification } = require('../services/notifications');
+const { buildPatchUpdate } = require('../services/patch');
 
 const router = express.Router();
 const PASSWORD_MIN_LENGTH = 8;
@@ -305,22 +306,19 @@ router.put('/:id', requireAuth, requireRole('admin'), (req, res) => {
   }
 
   const tx = db.transaction(() => {
-    db.prepare(`
-      UPDATE users
-      SET name = COALESCE(?, name),
-          username = COALESCE(?, username),
-          role = COALESCE(?, role),
-          is_active = COALESCE(?, is_active),
-          login_disabled = COALESCE(?, login_disabled)
-      WHERE id = ?
-    `).run(
-      name ? name.trim() : null,
-      username ? nextUsername : null,
-      role || null,
-      activeFlag,
-      loginDisabledFlag,
-      userId
+    const { sql, values } = buildPatchUpdate(
+      'users',
+      {
+        name: name === undefined ? undefined : name.trim(),
+        username: username === undefined ? undefined : nextUsername,
+        role,
+        is_active: activeFlag,
+        login_disabled: loginDisabledFlag,
+      },
+      'id = ?',
+      [userId],
     );
+    if (sql) db.prepare(sql).run(...values);
 
     db.prepare('UPDATE students SET user_id = NULL WHERE user_id = ? AND id != COALESCE(?, -1)')
       .run(userId, nextStudentId);
