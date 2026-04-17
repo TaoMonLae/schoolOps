@@ -43,10 +43,12 @@ const PORT = process.env.PORT || 3000;
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet({
+  noSniff: true,
   contentSecurityPolicy: {
     directives: {
       defaultSrc:     ["'self'"],
-      scriptSrc:      ["'self'", "https://unpkg.com", "'unsafe-inline'", "'unsafe-eval'"],
+      // Keep unsafe-eval for @babel/standalone; remove once a build step (vite/esbuild) pre-compiles JSX.
+      scriptSrc:      ["'self'", "https://unpkg.com", "'unsafe-eval'"],
       styleSrc:       ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:        ["'self'", "https://fonts.gstatic.com"],
       imgSrc:         ["'self'", "data:", "blob:"],
@@ -54,6 +56,8 @@ app.use(helmet({
       workerSrc:      ["'none'"],
       objectSrc:      ["'none'"],
       frameAncestors: ["'none'"],
+      baseUri:        ["'self'"],
+      formAction:     ["'self'"],
     },
   },
   crossOriginEmbedderPolicy: false,
