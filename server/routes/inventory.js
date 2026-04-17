@@ -3,6 +3,7 @@ const { db, audit } = require('../db/database');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { recordStockMovement } = require('../services/inventory');
 const { createNotificationsForRoles } = require('../services/notifications');
+const { buildPatchUpdate } = require('../services/patch');
 
 const router = express.Router();
 
@@ -124,25 +125,23 @@ router.put('/items/:id', requireAuth, requireRole('admin'), (req, res) => {
     is_active,
   } = req.body;
 
-  db.prepare(`
-    UPDATE inventory_items
-    SET name = COALESCE(?, name),
-        category_id = ?,
-        unit = COALESCE(?, unit),
-        reorder_level = COALESCE(?, reorder_level),
-        notes = COALESCE(?, notes),
-        is_active = COALESCE(?, is_active),
-        updated_at = datetime('now')
-    WHERE id = ?
-  `).run(
-    name ? name.trim() : null,
-    category_id === undefined ? existing.category_id : (category_id || null),
-    unit ? unit.trim() : null,
-    reorder_level == null ? null : Number(reorder_level),
-    notes,
-    is_active == null ? null : (is_active ? 1 : 0),
-    req.params.id,
+  const { sql, values } = buildPatchUpdate(
+    'inventory_items',
+    {
+      name: name === undefined ? undefined : name.trim(),
+      category_id: category_id === undefined ? existing.category_id : (category_id || null),
+      unit: unit === undefined ? undefined : unit.trim(),
+      reorder_level: reorder_level === undefined ? undefined : (reorder_level == null ? null : Number(reorder_level)),
+      notes,
+      is_active: is_active === undefined ? undefined : (is_active == null ? null : (is_active ? 1 : 0)),
+    },
+    'id = ?',
+    [req.params.id],
   );
+  if (sql) {
+    const withUpdatedAtSql = sql.replace(' WHERE ', ", updated_at = datetime('now') WHERE ");
+    db.prepare(withUpdatedAtSql).run(...values);
+  }
 
   notifyLowStockIfNeeded(Number(req.params.id));
   audit(req.user.id, 'UPDATE', 'inventory_items', req.params.id, `Updated inventory item ${req.params.id}`);

@@ -4,6 +4,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const { resolveStudentForRequest } = require('../services/studentIdentity');
 const { recordStockMovement, deleteStockMovementsByReference } = require('../services/inventory');
 const { createNotification, createNotificationsForRoles } = require('../services/notifications');
+const { buildPatchUpdate } = require('../services/patch');
 
 const router = express.Router();
 
@@ -223,11 +224,16 @@ router.put('/:id/status', requireAuth, requireRole('admin', 'teacher'), (req, re
   if (!log) return res.status(404).json({ error: 'Duty log not found' });
 
   const tx = db.transaction(() => {
-    db.prepare(`
-      UPDATE duty_logs
-      SET status = ?, reviewed_by = ?, reviewed_at = datetime('now'), notes = COALESCE(?, notes)
-      WHERE id = ?
-    `).run(status, req.user.id, notes || null, req.params.id);
+    const { sql, values } = buildPatchUpdate(
+      'duty_logs',
+      { status, reviewed_by: req.user.id, notes },
+      'id = ?',
+      [req.params.id],
+    );
+    if (sql) {
+      const withReviewedAtSql = sql.replace(' WHERE ', ", reviewed_at = datetime('now') WHERE ");
+      db.prepare(withReviewedAtSql).run(...values);
+    }
 
     if (status !== 'approved' && log.status === 'approved') {
       reverseUsageForLog(Number(req.params.id));

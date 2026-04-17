@@ -9,6 +9,7 @@ const { getSettings } = require('../services/settings');
 const { createNotification } = require('../services/notifications');
 const { multipartUpload } = require('../middleware/multipartUpload');
 const { drawPdfLogo, getPdfThemeTokens } = require('../services/pdfBranding');
+const { buildPatchUpdate } = require('../services/patch');
 
 const router = express.Router();
 const MONTHS = [
@@ -495,25 +496,14 @@ router.put('/:id(\\d+)', requireAuth, requireRole('admin'), (req, res) => {
     return res.status(400).json({ error: 'Invalid hostel_status' });
   }
 
-  db.prepare(`
-    UPDATE students
-    SET name = COALESCE(?, name),
-        gender = COALESCE(?, gender),
-        level = COALESCE(?, level),
-        enroll_date = COALESCE(?, enroll_date),
-        fee_amount = COALESCE(?, fee_amount),
-        fee_frequency = COALESCE(?, fee_frequency),
-        status = COALESCE(?, status),
-        dorm_house = COALESCE(?, dorm_house),
-        room = COALESCE(?, room),
-        bed_number = COALESCE(?, bed_number),
-        hostel_status = COALESCE(?, hostel_status),
-        notes = COALESCE(?, notes)
-    WHERE id = ?
-  `).run(
-    name, gender, level, enroll_date, fee_amount, fee_frequency, status,
-    dorm_house, room, bed_number, hostel_status, notes, req.params.id,
+  const { sql, values } = buildPatchUpdate(
+    'students',
+    { name, gender, level, enroll_date, fee_amount, fee_frequency, status,
+      dorm_house, room, bed_number, hostel_status, notes },
+    'id = ?',
+    [req.params.id],
   );
+  if (sql) db.prepare(sql).run(...values);
 
   audit(req.user.id, 'UPDATE', 'students', req.params.id, `Updated student ${req.params.id}`);
   res.json({ ok: true });
