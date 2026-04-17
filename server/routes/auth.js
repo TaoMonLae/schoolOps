@@ -3,6 +3,10 @@ const bcrypt  = require('bcryptjs');
 const { db, audit } = require('../db/database');
 const { requireAuth, signToken } = require('../middleware/auth');
 
+// Used when the username isn't found so compareSync always runs ~100ms
+// in both "user missing" and "wrong password" branches.
+const DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8.Wb5q8Dv4QkPm9pNkCgqPjqXUe8Oe';
+
 const router = express.Router();
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -30,7 +34,9 @@ router.post('/login', (req, res) => {
     return res.status(400).json({ error: 'Username and password required' });
 
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+  const candidateHash = user ? user.password_hash : DUMMY_HASH;
+  const passwordValid = bcrypt.compareSync(password, candidateHash);
+  if (!user || !passwordValid) {
     audit(null, 'LOGIN_FAILED', 'users', null, `Failed login attempt for username: ${username}`);
     return res.status(401).json({ error: 'Invalid credentials' });
   }
