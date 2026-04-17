@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const path         = require('path');
 const helmet       = require('helmet');
 const rateLimit    = require('express-rate-limit');
+const { issueCsrfToken, requireCsrf } = require('./middleware/csrf');
 
 const authRoutes        = require('./routes/auth');
 const studentRoutes     = require('./routes/students');
@@ -64,6 +65,8 @@ app.use(helmet({
 }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
+app.use(issueCsrfToken);
+app.use('/api', requireCsrf);
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

@@ -2,6 +2,13 @@
 
 const { useState, useEffect, useContext, useCallback, useMemo } = React;
 
+function csrfHeaders() {
+  const token = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '';
+  return { 'X-CSRF-Token': token };
+}
+
+window.csrfHeaders = csrfHeaders;
+
 // ── Nav Icons (stroke-based SVG) ──────────────────────────────────────────────
 function NavIcon({ name, size = 16 }) {
   const p = {
