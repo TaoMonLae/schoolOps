@@ -73,7 +73,7 @@ const loginLimiter = rateLimit({
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.post('/api/auth/login', loginLimiter);
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth',         authRoutes);
 app.use('/api/students',     studentRoutes);
 app.use('/api/fees',         feeRoutes);
