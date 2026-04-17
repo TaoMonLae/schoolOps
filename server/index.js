@@ -48,8 +48,9 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc:     ["'self'"],
-      // Keep unsafe-eval for @babel/standalone; remove once a build step (vite/esbuild) pre-compiles JSX.
-      scriptSrc:      ["'self'", "https://unpkg.com", "'unsafe-eval'"],
+      // Keep unsafe-eval + unsafe-inline for @babel/standalone runtime transpilation.
+      // Remove both once a build step (vite/esbuild) pre-compiles JSX into static JS bundles.
+      scriptSrc:      ["'self'", "https://unpkg.com", "'unsafe-eval'", "'unsafe-inline'"],
       styleSrc:       ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc:        ["'self'", "https://fonts.gstatic.com"],
       imgSrc:         ["'self'", "data:", "blob:"],
