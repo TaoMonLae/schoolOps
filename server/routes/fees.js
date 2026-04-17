@@ -36,9 +36,27 @@ router.get('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
     WHERE fp.voided = 0
   `;
   const params = [];
-  if (month)      { sql += ' AND fp.period_month = ?'; params.push(month); }
-  if (year)       { sql += ' AND fp.period_year = ?';  params.push(year); }
-  if (student_id) { sql += ' AND fp.student_id = ?';   params.push(student_id); }
+  if (month) {
+    const m = Number.parseInt(month, 10);
+    if (!Number.isInteger(m) || m < 1 || m > 12)
+      return res.status(400).json({ error: 'month must be between 1 and 12' });
+    sql += ' AND fp.period_month = ?';
+    params.push(m);
+  }
+  if (year) {
+    const y = Number.parseInt(year, 10);
+    if (!Number.isInteger(y) || y < 2000 || y > 2100)
+      return res.status(400).json({ error: 'year must be between 2000 and 2100' });
+    sql += ' AND fp.period_year = ?';
+    params.push(y);
+  }
+  if (student_id) {
+    const sid = Number.parseInt(student_id, 10);
+    if (!Number.isInteger(sid) || sid <= 0)
+      return res.status(400).json({ error: 'student_id must be a positive integer' });
+    sql += ' AND fp.student_id = ?';
+    params.push(sid);
+  }
   sql += ' ORDER BY fp.paid_date DESC';
 
   res.json(db.prepare(sql).all(...params));
