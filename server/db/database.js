@@ -85,10 +85,8 @@ function ensureInventorySeedData() {
 }
 
 function ensureAccountingSeedData() {
-  // Only seed if table is empty
-  const count = db.prepare('SELECT COUNT(*) AS n FROM chart_of_accounts').get().n;
-  if (count > 0) return;
-
+  // Always run — ON CONFLICT makes this idempotent. Ensures deleted system
+  // accounts are restored on next boot without wiping user-created accounts.
   const accts = [
     // ASSETS
     { code: '1000', name: 'Cash on Hand',            type: 'asset',   sub_type: 'cash',       description: 'Physical cash held at school' },
