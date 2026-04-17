@@ -19,24 +19,55 @@ function normalizeStockFields({ stock_item_id, stock_quantity, amount, expense_d
   };
 }
 
-function syncExpenditureStockMovement(expenditure, actorId) {
+function syncExpenditureStockMovement(expenditure, actorId, { previous } = {}) {
   const { stockItemId, stockQty, amountNum, expenseDate } = normalizeStockFields(expenditure);
-  if (!stockItemId || !Number.isFinite(stockQty) || stockQty <= 0 || !expenseDate) return expenditure.stock_movement_id || null;
-  if (expenditure.stock_movement_id) return expenditure.stock_movement_id;
+  const wantsMovement = !!(stockItemId && Number.isFinite(stockQty) && stockQty > 0 && expenseDate);
+
+  const prevNorm = previous ? normalizeStockFields(previous) : null;
+  const stockFieldsChanged = prevNorm && (
+    prevNorm.stockItemId !== stockItemId ||
+    prevNorm.stockQty !== stockQty ||
+    prevNorm.amountNum !== amountNum ||
+    prevNorm.expenseDate !== expenseDate
+  );
+
+  // Reverse the existing movement if fields changed or movement is no longer wanted.
+  if (expenditure.stock_movement_id && (stockFieldsChanged || !wantsMovement)) {
+    const prior = db.prepare('SELECT * FROM stock_movements WHERE id = ?')
+      .get(expenditure.stock_movement_id);
+    if (prior) {
+      const reversalId = recordStockMovement({
+        itemId: prior.item_id,
+        movementType: 'adjustment',
+        quantity: -Number(prior.quantity || 0),
+        unitCost: prior.unit_cost,
+        movementDate: expenseDate || prior.movement_date,
+        notes: `Reversal of stock movement #${prior.id} for edited expenditure #${expenditure.id}`,
+        refTable: 'expenditures',
+        refId: expenditure.id,
+        createdBy: actorId,
+      });
+      db.prepare('UPDATE expenditures SET stock_reversal_movement_id = ?, stock_movement_id = NULL WHERE id = ?')
+        .run(reversalId, expenditure.id);
+    }
+  }
+
+  if (!wantsMovement) return null;
+  if (expenditure.stock_movement_id && !stockFieldsChanged) return expenditure.stock_movement_id;
 
   const movementId = recordStockMovement({
     itemId: stockItemId,
     movementType: 'purchase',
     quantity: stockQty,
-    unitCost: Number.isFinite(amountNum) ? amountNum / Math.max(stockQty, 1) : null,
+    unitCost: Number.isFinite(amountNum) && stockQty > 0 ? amountNum / stockQty : null,
     movementDate: expenseDate,
     notes: `Purchased via expenditure #${expenditure.id}`,
     refTable: 'expenditures',
     refId: expenditure.id,
     createdBy: actorId,
   });
-
-  db.prepare('UPDATE expenditures SET stock_movement_id = ? WHERE id = ?').run(movementId, expenditure.id);
+  db.prepare('UPDATE expenditures SET stock_movement_id = ? WHERE id = ?')
+    .run(movementId, expenditure.id);
   return movementId;
 }
 
@@ -188,7 +219,7 @@ router.put('/:id', requireAuth, requireRole('admin'), (req, res) => {
       req.params.id,
     );
 
-    syncExpenditureStockMovement(nextValues, req.user.id);
+    syncExpenditureStockMovement(nextValues, req.user.id, { previous: existing });
   });
 
   tx();
