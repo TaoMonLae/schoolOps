@@ -230,13 +230,30 @@ function AuthProvider({ children }) {
     document.documentElement.setAttribute('data-theme', activeTheme);
   }, [settings.theme, themeOverride]);
 
+  useEffect(() => {
+    const isSystemThemeMode = settings.theme === 'classic' || settings.theme === 'dark_mode';
+    if (!isSystemThemeMode && themeOverride) {
+      setThemeOverride('');
+      try {
+        localStorage.removeItem('schoolops_theme_override');
+      } catch (_) {}
+    }
+  }, [settings.theme, themeOverride]);
+
   const setThemeMode = useCallback((mode) => {
-    const next = mode === 'dark' ? 'night_study' : 'classic';
-    setThemeOverride(next);
+    const lightTheme = settings.theme && settings.theme !== 'dark_mode' ? settings.theme : 'classic';
+    const baseTheme = settings.theme === 'dark_mode' ? 'night_study' : lightTheme;
+    const next = mode === 'dark' ? 'night_study' : lightTheme;
+    const override = next === baseTheme ? '' : next;
+    setThemeOverride(override);
     try {
-      localStorage.setItem('schoolops_theme_override', next);
+      if (override) {
+        localStorage.setItem('schoolops_theme_override', override);
+      } else {
+        localStorage.removeItem('schoolops_theme_override');
+      }
     } catch (_) {}
-  }, []);
+  }, [settings.theme]);
 
   const activeThemeMode = (themeOverride || (settings.theme === 'dark_mode' ? 'night_study' : settings.theme || 'classic')) === 'night_study' ? 'dark' : 'light';
 
