@@ -115,7 +115,7 @@ function DutySubmit({ user }) {
   };
 
   return (
-    <div>
+    <div className="student-dashboard">
       {submitted && (
         <div className="duty-submit-success">
           Duty log <strong>{submitted.duty_number}</strong> submitted — Total: {fmtRM(submitted.grandTotal)}
@@ -171,20 +171,20 @@ function DutySubmit({ user }) {
               <tbody>
                 {form.items.map((item, i) => (
                   <tr key={i}>
-                    <td><input value={item.item_name} onChange={e => updateItem(i,'item_name',e.target.value)} placeholder="e.g. Beras 5kg" required /></td>
-                    <td><input type="number" min="0.1" step="0.1" value={item.quantity} onChange={e => updateItem(i,'quantity',e.target.value)} /></td>
-                    <td><input type="number" min="0.01" step="0.01" value={item.unit_price} onChange={e => updateItem(i,'unit_price',e.target.value)} placeholder="0.00" required /></td>
-                    <td style={{ fontWeight:600, padding:'4px 14px' }}>{fmtRM(item.total_price)}</td>
-                    <td>
+                    <td data-label="Item Name"><input value={item.item_name} onChange={e => updateItem(i,'item_name',e.target.value)} placeholder="e.g. Beras 5kg" required /></td>
+                    <td data-label="Qty"><input type="number" min="0.1" step="0.1" value={item.quantity} onChange={e => updateItem(i,'quantity',e.target.value)} /></td>
+                    <td data-label="Unit Price (RM)"><input type="number" min="0.01" step="0.01" value={item.unit_price} onChange={e => updateItem(i,'unit_price',e.target.value)} placeholder="0.00" required /></td>
+                    <td data-label="Total (RM)" style={{ fontWeight:600, padding:'4px 14px' }}>{fmtRM(item.total_price)}</td>
+                    <td data-label="Inventory Link">
                       <select value={item.inventory_item_id || ''} onChange={e => handleInventoryPick(i, e.target.value)}>
                         <option value="">— none —</option>
                         {stockItems.map(si => <option key={si.id} value={si.id}>{si.name} ({si.unit})</option>)}
                       </select>
                     </td>
-                    <td>
+                    <td data-label="Stock Used">
                       <input type="number" min="0" step="0.01" value={item.stock_quantity_used || ''} onChange={e => updateItem(i,'stock_quantity_used',e.target.value)} placeholder="qty" />
                     </td>
-                    <td>
+                    <td data-label="Remove">
                       {form.items.length > 1 && (
                         <button type="button" className="btn btn-danger btn-sm btn-icon" onClick={() => removeItem(i)}>✕</button>
                       )}
@@ -206,11 +206,11 @@ function DutySubmit({ user }) {
               <div>
                 <button type="button" className="btn btn-secondary" onClick={addItem}>+ Add Item</button>
                 <div className="duty-upload-block">
-                  <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />
+                  <input className="duty-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />
                   <div className="duty-upload-help">Optional evidence (pdf/jpg/png/webp, max 5MB)</div>
                 </div>
               </div>
-              <button type="submit" className="btn btn-primary" disabled={saving}>
+              <button type="submit" className="btn btn-primary duty-submit-btn" disabled={saving}>
                 {saving ? 'Submitting…' : 'Submit Duty Log'}
               </button>
             </div>
@@ -303,7 +303,7 @@ function DutyReview({ user }) {
         {loading ? <div className="empty"><div className="icon">⏳</div>Loading…</div> : (
           <>
             <div className="table-scroll table-scroll-wide">
-            <table>
+            <table className="mobile-stack-table">
               <thead>
                 <tr><th>Duty No.</th><th>Date</th><th>Submitted By</th><th>Items</th><th>Total</th><th>Att.</th><th>Status</th><th>Actions</th></tr>
               </thead>
@@ -314,14 +314,14 @@ function DutyReview({ user }) {
                   const total = (log.items || []).reduce((s, i) => s + i.total_price, 0);
                   return (
                     <tr key={log.id}>
-                      <td><strong>{log.duty_number}</strong></td>
-                      <td>{log.date}</td>
-                      <td>{log.submitted_by_name}</td>
-                      <td>{(log.items||[]).length} item(s)</td>
-                      <td style={{ fontWeight:600 }}>{fmtRM(total)}</td>
-                      <td>{log.attachment_count > 0 ? <span className="badge badge-green">att {log.attachment_count}</span> : '—'}</td>
-                      <td><window.StatusBadge status={log.status} /></td>
-                      <td>
+                      <td data-label="Duty No."><strong>{log.duty_number}</strong></td>
+                      <td data-label="Date">{log.date}</td>
+                      <td data-label="Submitted By">{log.submitted_by_name}</td>
+                      <td data-label="Items">{(log.items||[]).length} item(s)</td>
+                      <td data-label="Total" style={{ fontWeight:600 }}>{fmtRM(total)}</td>
+                      <td data-label="Attachments">{log.attachment_count > 0 ? <span className="badge badge-green">att {log.attachment_count}</span> : '—'}</td>
+                      <td data-label="Status"><window.StatusBadge status={log.status} /></td>
+                      <td data-label="Actions">
                         <div className="table-row-actions">
                           <button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>View</button>
                           {log.status === 'pending' && <>
@@ -416,20 +416,20 @@ function DutyHistory({ user }) {
           <div className="empty"><div className="icon"></div>No duty logs submitted yet</div>
         ) : (
           <div className="table-scroll table-scroll-compact">
-          <table>
+          <table className="mobile-stack-table">
             <thead><tr><th>Duty No.</th><th>Date</th><th>Items</th><th>Total</th><th>Att.</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {rows.map(log => {
                 const total = (log.items||[]).reduce((s,i) => s+i.total_price, 0);
                 return (
                   <tr key={log.id}>
-                    <td><strong>{log.duty_number}</strong></td>
-                    <td>{log.date}</td>
-                    <td>{(log.items||[]).length}</td>
-                    <td style={{ fontWeight:600 }}>{fmtRM(total)}</td>
-                    <td>{log.attachment_count > 0 ? <span className="badge badge-green">att {log.attachment_count}</span> : '—'}</td>
-                    <td><window.StatusBadge status={log.status} /></td>
-                    <td><button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>View</button></td>
+                    <td data-label="Duty No."><strong>{log.duty_number}</strong></td>
+                    <td data-label="Date">{log.date}</td>
+                    <td data-label="Items">{(log.items||[]).length}</td>
+                    <td data-label="Total" style={{ fontWeight:600 }}>{fmtRM(total)}</td>
+                    <td data-label="Attachments">{log.attachment_count > 0 ? <span className="badge badge-green">att {log.attachment_count}</span> : '—'}</td>
+                    <td data-label="Status"><window.StatusBadge status={log.status} /></td>
+                    <td data-label="Actions"><button className="btn btn-secondary btn-sm" onClick={() => setDetail(log)}>View</button></td>
                   </tr>
                 );
               })}

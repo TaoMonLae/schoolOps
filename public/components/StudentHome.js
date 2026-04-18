@@ -24,7 +24,7 @@ window.StudentHome = function StudentHome() {
   const latestDuty = data.duty?.latest_submission;
 
   return (
-    <div>
+    <div className="student-dashboard">
       <div className="cards" style={{ marginBottom: 14 }}>
         <div className="metric"><small>Current Fee Status</small><h3>{(data.fees?.current_month?.status || 'unpaid').toUpperCase()}</h3></div>
         <div className="metric"><small>Outstanding Amount</small><h3>{fmtRM(data.fees?.outstanding_amount || 0)}</h3></div>
