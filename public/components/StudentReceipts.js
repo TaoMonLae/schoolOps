@@ -40,19 +40,19 @@ window.StudentReceipts = function StudentReceipts() {
   return (
     <div className="card" style={{ padding:0 }}>
       <div className="table-scroll">
-        <table>
+        <table className="mobile-stack-table">
           <thead><tr><th>Receipt Code</th><th>Amount</th><th>Paid Date</th><th>Period</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             {rows.length === 0 ? (
               <tr><td colSpan={6}><window.StatePanel type="empty" compact message="No receipts yet." /></td></tr>
             ) : rows.map((r) => (
               <tr key={r.id}>
-                <td>{r.receipt_code}</td>
-                <td>{fmtRM(r.amount)}</td>
-                <td>{r.paid_date}</td>
-                <td>{r.period_label}</td>
-                <td><window.StatusBadge status={r.status || 'active'} /></td>
-                <td>
+                <td data-label="Receipt Code">{r.receipt_code}</td>
+                <td data-label="Amount">{fmtRM(r.amount)}</td>
+                <td data-label="Paid Date">{r.paid_date}</td>
+                <td data-label="Period">{r.period_label}</td>
+                <td data-label="Status"><window.StatusBadge status={r.status || 'active'} /></td>
+                <td data-label="Actions">
                   <div className="table-row-actions">
                     <button className="btn btn-secondary btn-sm" onClick={() => verifyReceipt(r.receipt_code)}>Verify</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => downloadReceipt(r)}>Download</button>
