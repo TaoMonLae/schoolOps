@@ -224,25 +224,15 @@ function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, [refreshUser, refreshSettings]);
 
-  useEffect(() => {
-    const baseTheme = settings.theme === 'dark_mode' ? 'night_study' : (settings.theme || 'classic');
-    const activeTheme = themeOverride || baseTheme;
-    document.documentElement.setAttribute('data-theme', activeTheme);
-  }, [settings.theme, themeOverride]);
+  const lightTheme = settings.theme && settings.theme !== 'dark_mode' ? settings.theme : 'classic';
+  const baseTheme = settings.theme === 'dark_mode' ? 'night_study' : lightTheme;
+  const activeTheme = themeOverride || baseTheme;
 
   useEffect(() => {
-    const isSystemThemeMode = settings.theme === 'classic' || settings.theme === 'dark_mode';
-    if (!isSystemThemeMode && themeOverride) {
-      setThemeOverride('');
-      try {
-        localStorage.removeItem('schoolops_theme_override');
-      } catch (_) {}
-    }
-  }, [settings.theme, themeOverride]);
+    document.documentElement.setAttribute('data-theme', activeTheme);
+  }, [activeTheme]);
 
   const setThemeMode = useCallback((mode) => {
-    const lightTheme = settings.theme && settings.theme !== 'dark_mode' ? settings.theme : 'classic';
-    const baseTheme = settings.theme === 'dark_mode' ? 'night_study' : lightTheme;
     const next = mode === 'dark' ? 'night_study' : lightTheme;
     const override = next === baseTheme ? '' : next;
     setThemeOverride(override);
@@ -253,9 +243,9 @@ function AuthProvider({ children }) {
         localStorage.removeItem('schoolops_theme_override');
       }
     } catch (_) {}
-  }, [settings.theme]);
+  }, [baseTheme, lightTheme]);
 
-  const activeThemeMode = (themeOverride || (settings.theme === 'dark_mode' ? 'night_study' : settings.theme || 'classic')) === 'night_study' ? 'dark' : 'light';
+  const activeThemeMode = activeTheme === 'night_study' ? 'dark' : 'light';
 
   const login = useCallback(async (username, password) => {
     const u = await api('/api/auth/login', {
