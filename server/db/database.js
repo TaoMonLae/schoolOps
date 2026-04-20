@@ -32,7 +32,7 @@ function columnExists(table, column) {
     'expenditures','attachments','audit_log','settings','inventory_items',
     'stock_categories','stock_movements','attendance_records','student_movement_logs',
     'student_movement_tracking_pings','notifications','chart_of_accounts','donor_funds','cashbook_entries',
-    'account_opening_balances','monthly_closings',
+    'account_opening_balances','monthly_closings','disciplinary_rules','disciplinary_records',
   ];
   if (!KNOWN_TABLES.includes(table)) throw new Error(`Unknown table: ${table}`);
   const rows = db.prepare(`PRAGMA table_info(${table})`).all();
@@ -120,6 +120,62 @@ function ensureAccountingSeedData() {
     ON CONFLICT(code) DO NOTHING
   `);
   for (const a of accts) ins.run(a.code, a.name, a.type, a.sub_type, a.description);
+}
+
+function ensureDisciplinarySeedData() {
+  const rules = [
+    // General Conduct
+    { code: 'GC-01', title: 'Disrespectful Behaviour', cat: 'General Conduct', art: 'Art. 1.1', desc: 'Student shows disrespect to staff, peers or visitors.', sev: 'moderate', act: 'Verbal warning, parental notification' },
+    { code: 'GC-02', title: 'Dishonesty or Deception', cat: 'General Conduct', art: 'Art. 1.2', desc: 'Lying, cheating or any form of deception.', sev: 'moderate', act: 'Written warning' },
+    { code: 'GC-03', title: 'Physical Altercation', cat: 'General Conduct', art: 'Art. 1.3', desc: 'Fighting or threatening physical violence against others.', sev: 'serious', act: 'Suspension, parental meeting' },
+    // Academic Responsibilities
+    { code: 'AR-01', title: 'Academic Dishonesty / Plagiarism', cat: 'Academic Responsibilities', art: 'Art. 2.1', desc: 'Copying, plagiarism or unauthorised assistance in assessments.', sev: 'serious', act: 'Zero mark, written warning' },
+    { code: 'AR-02', title: 'Failure to Submit Assignments', cat: 'Academic Responsibilities', art: 'Art. 2.2', desc: 'Repeated failure to submit required schoolwork on time.', sev: 'minor', act: 'Verbal warning, catch-up session' },
+    { code: 'AR-03', title: 'Class Disruption', cat: 'Academic Responsibilities', art: 'Art. 2.3', desc: 'Disrupting teaching sessions or other students\' learning.', sev: 'minor', act: 'Verbal warning' },
+    // Dress Code
+    { code: 'DC-01', title: 'Non-compliant Uniform', cat: 'Dress Code', art: 'Art. 3.1', desc: 'Wearing incorrect or incomplete school uniform.', sev: 'minor', act: 'Verbal warning, corrective action required' },
+    { code: 'DC-02', title: 'Inappropriate Appearance', cat: 'Dress Code', art: 'Art. 3.2', desc: 'Hair, accessories or appearance not in line with school standards.', sev: 'minor', act: 'Verbal warning' },
+    // Facilities Use
+    { code: 'FU-01', title: 'Misuse or Damage to School Property', cat: 'Facilities Use', art: 'Art. 4.1', desc: 'Deliberate or negligent damage to school facilities or property.', sev: 'serious', act: 'Repair/replacement cost, written warning' },
+    { code: 'FU-02', title: 'Unauthorised Area Access', cat: 'Facilities Use', art: 'Art. 4.2', desc: 'Entering restricted or off-limit areas without permission.', sev: 'moderate', act: 'Written warning' },
+    // Mobile Phones & Electronics
+    { code: 'MP-01', title: 'Unauthorised Device Use', cat: 'Mobile Phones & Electronics', art: 'Art. 5.1', desc: 'Using mobile phones or electronics during study/class hours without permission.', sev: 'minor', act: 'Device confiscated, verbal warning' },
+    { code: 'MP-02', title: 'Prohibited Content on Device', cat: 'Mobile Phones & Electronics', art: 'Art. 5.2', desc: 'Storing or sharing prohibited content on personal devices.', sev: 'serious', act: 'Device confiscated, parental notification, suspension review' },
+    // Visitors
+    { code: 'VI-01', title: 'Unauthorised Visitor', cat: 'Visitors', art: 'Art. 6.1', desc: 'Bringing or meeting an unauthorised visitor on school premises.', sev: 'moderate', act: 'Written warning, parental notification' },
+    // Health & Hygiene
+    { code: 'HH-01', title: 'Hygiene Non-compliance', cat: 'Health & Hygiene', art: 'Art. 7.1', desc: 'Failure to maintain personal hygiene to acceptable school standards.', sev: 'minor', act: 'Verbal warning, counselling' },
+    { code: 'HH-02', title: 'Smoking or Prohibited Substance Use', cat: 'Health & Hygiene', art: 'Art. 7.2', desc: 'Possession or use of tobacco, vape or any prohibited substance.', sev: 'serious', act: 'Suspension, parental meeting, potential expulsion review' },
+    // Hostel / Curfew
+    { code: 'HC-01', title: 'Curfew Violation', cat: 'Hostel / Curfew', art: 'Art. 8.1', desc: 'Returning to hostel after stipulated curfew time without valid reason.', sev: 'moderate', act: 'Written warning, restricted outing' },
+    { code: 'HC-02', title: 'Unauthorised Absence from Hostel', cat: 'Hostel / Curfew', art: 'Art. 8.2', desc: 'Leaving hostel or campus without proper sign-out or approval.', sev: 'serious', act: 'Suspension, parental notification' },
+    // Dormitory Conduct
+    { code: 'DO-01', title: 'Dormitory Disturbance', cat: 'Dormitory Conduct', art: 'Art. 9.1', desc: 'Causing noise or disturbance in dormitory during quiet hours.', sev: 'minor', act: 'Verbal warning' },
+    { code: 'DO-02', title: 'Dormitory Property Damage', cat: 'Dormitory Conduct', art: 'Art. 9.2', desc: 'Damaging dormitory furniture, fittings or shared property.', sev: 'moderate', act: 'Repair/replacement cost, written warning' },
+    // Gender Separation
+    { code: 'GS-01', title: 'Gender Boundary Violation', cat: 'Gender Separation', art: 'Art. 10.1', desc: 'Entering designated areas of the opposite gender without permission.', sev: 'serious', act: 'Written warning, parental notification, suspension review' },
+    // Kitchen / Dining
+    { code: 'KD-01', title: 'Dining Hall Misconduct', cat: 'Kitchen / Dining', art: 'Art. 11.1', desc: 'Misbehaviour, food waste or disruption in the dining hall or kitchen area.', sev: 'minor', act: 'Verbal warning, duty assignment' },
+    { code: 'KD-02', title: 'Unauthorised Kitchen Access', cat: 'Kitchen / Dining', art: 'Art. 11.2', desc: 'Entering kitchen or food storage without authorisation.', sev: 'moderate', act: 'Written warning' },
+    // Shared Responsibilities
+    { code: 'SR-01', title: 'Failure to Complete Assigned Duty', cat: 'Shared Responsibilities', art: 'Art. 12.1', desc: 'Neglecting or refusing to carry out assigned duty roster tasks.', sev: 'minor', act: 'Make-up duty assigned, verbal warning' },
+    // Safety
+    { code: 'SF-01', title: 'Safety Rule Violation', cat: 'Safety', art: 'Art. 13.1', desc: 'Behaviour that endangers self or others, or violates safety procedures.', sev: 'serious', act: 'Immediate correction, written warning, parental notification' },
+    // Study Hours
+    { code: 'SH-01', title: 'Study Hour Disruption', cat: 'Study Hours', art: 'Art. 14.1', desc: 'Causing disruption during designated study hour periods.', sev: 'minor', act: 'Verbal warning' },
+    { code: 'SH-02', title: 'Sleeping During Study Hours', cat: 'Study Hours', art: 'Art. 14.2', desc: 'Sleeping or engaging in non-study activity during mandatory study periods.', sev: 'minor', act: 'Verbal warning, counselling' },
+    // Prohibited Items
+    { code: 'PI-01', title: 'Possession of Prohibited Item', cat: 'Prohibited Items', art: 'Art. 15.1', desc: 'Having weapons, gambling items, pornographic material or other prohibited items on premises.', sev: 'serious', act: 'Item confiscated, suspension, parental meeting' },
+  ];
+
+  const insert = db.prepare(`
+    INSERT INTO disciplinary_rules (rule_code, title, category, article_reference, description, severity, default_action, active)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+    ON CONFLICT(rule_code) DO NOTHING
+  `);
+  for (const r of rules) {
+    insert.run(r.code, r.title, r.cat, r.art, r.desc, r.sev, r.act);
+  }
 }
 
 function runMigrations() {
@@ -559,8 +615,58 @@ function runMigrations() {
     db.exec('ALTER TABLE monthly_closings ADD COLUMN reopen_reason TEXT');
   }
 
+  if (!tableExists('disciplinary_rules')) {
+    db.exec(`
+      CREATE TABLE disciplinary_rules (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        rule_code         TEXT    NOT NULL UNIQUE,
+        title             TEXT    NOT NULL,
+        category          TEXT    NOT NULL,
+        article_reference TEXT,
+        description       TEXT,
+        severity          TEXT    NOT NULL CHECK(severity IN ('minor','moderate','serious')),
+        default_action    TEXT,
+        active            INTEGER NOT NULL DEFAULT 1,
+        created_by        INTEGER REFERENCES users(id),
+        created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+        updated_at        TEXT    NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_disc_rules_active ON disciplinary_rules (active)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_disc_rules_category ON disciplinary_rules (category)');
+  }
+
+  if (!tableExists('disciplinary_records')) {
+    db.exec(`
+      CREATE TABLE disciplinary_records (
+        id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id               INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        rule_id                  INTEGER NOT NULL REFERENCES disciplinary_rules(id),
+        incident_date            TEXT    NOT NULL,
+        reported_by              INTEGER REFERENCES users(id),
+        location                 TEXT,
+        details                  TEXT,
+        severity_at_time         TEXT    NOT NULL CHECK(severity_at_time IN ('minor','moderate','serious')),
+        status                   TEXT    NOT NULL DEFAULT 'pending'
+                                         CHECK(status IN ('pending','reviewed','confirmed','resolved','appealed')),
+        action_taken             TEXT,
+        warning_level            INTEGER,
+        parent_guardian_notified INTEGER NOT NULL DEFAULT 0,
+        attachment               TEXT,
+        student_acknowledged_at  TEXT,
+        created_at               TEXT    NOT NULL DEFAULT (datetime('now')),
+        updated_at               TEXT    NOT NULL DEFAULT (datetime('now'))
+      )
+    `);
+    db.exec('CREATE INDEX IF NOT EXISTS idx_disc_records_student ON disciplinary_records (student_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_disc_records_rule    ON disciplinary_records (rule_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_disc_records_status  ON disciplinary_records (status)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_disc_records_date    ON disciplinary_records (incident_date DESC)');
+  }
+
   ensureInventorySeedData();
   ensureAccountingSeedData();
+  ensureDisciplinarySeedData();
 }
 
 runMigrations();
