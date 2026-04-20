@@ -1446,14 +1446,15 @@
     .duty-items-table { margin-bottom: 0; }
     .duty-actions-row {
       display: flex;
-      justify-content: space-between;
-      margin-top: 14px;
-      gap: 12px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-top: 12px;
+      gap: 10px;
+      width: min(100%, 460px);
     }
     .duty-file-input { width: 100%; }
     .duty-submit-btn { min-width: 180px; }
-    .duty-upload-block { margin-top: 8px; }
+    .duty-upload-block { width: 100%; }
     .duty-upload-help { font-size: 11px; color: var(--muted); margin-top: 4px; }
     .duty-check-note { margin-top: 16px; font-size: 12.5px; color: var(--mid); }
     .duty-meta-grid {
@@ -1961,17 +1962,13 @@
         width: 100%;
       }
       .duty-actions-row {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 10px;
+        width: 100%;
       }
-      .duty-actions-row > div { width: 100%; }
       .duty-actions-row .btn {
         width: 100%;
         min-height: 42px;
         justify-content: center;
       }
-      .duty-upload-block { width: 100%; }
       .duty-upload-block input[type="file"] {
         width: 100%;
       }

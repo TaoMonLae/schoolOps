@@ -203,12 +203,10 @@ function DutySubmit({ user }) {
           </div>
 
             <div className="duty-actions-row">
-              <div>
-                <button type="button" className="btn btn-secondary" onClick={addItem}>+ Add Item</button>
-                <div className="duty-upload-block">
-                  <input className="duty-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />
-                  <div className="duty-upload-help">Optional evidence (pdf/jpg/png/webp, max 5MB)</div>
-                </div>
+              <button type="button" className="btn btn-secondary" onClick={addItem}>+ Add Item</button>
+              <div className="duty-upload-block">
+                <input className="duty-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />
+                <div className="duty-upload-help">Optional evidence (pdf/jpg/png/webp, max 5MB)</div>
               </div>
               <button type="submit" className="btn btn-primary duty-submit-btn" disabled={saving}>
                 {saving ? 'Submitting…' : 'Submit Duty Log'}
