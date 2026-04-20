@@ -1,6 +1,6 @@
 #Finance & Operations Ledger
 
-Created by Tao Mon Lae / App Version 1.0
+Created by Tao Mon Lae / App Version 3.0
 
 A full-stack web app for managing student fees, attendance, hostel/boarding assignments, daily duty logs, general expenses, inventory/stock control, and monthly financial reports.
 
