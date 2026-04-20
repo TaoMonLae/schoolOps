@@ -1,6 +1,7 @@
 window.Students = function Students({ user }) {
   const { showToast } = React.useContext(window.ToastContext);
   const isAdmin = user?.role === 'admin';
+  const canManageDiscipline = user?.role === 'admin' || user?.role === 'teacher';
   const now = new Date();
   const [month, setMonth] = React.useState(now.getMonth() + 1);
   const [year,  setYear]  = React.useState(now.getFullYear());
@@ -28,6 +29,9 @@ window.Students = function Students({ user }) {
   const [importing, setImporting] = React.useState(false);
   const [importResult, setImportResult] = React.useState(null);
   const [exporting, setExporting] = React.useState(false);
+  const [disciplineModal, setDisciplineModal] = React.useState(null);
+  const [disciplineRules, setDisciplineRules] = React.useState([]);
+  const [disciplineSaving, setDisciplineSaving] = React.useState(false);
   const importFileRef = React.useRef(null);
   const moreMenuRef = React.useRef(null);
   const moreMenuTriggerRefs = React.useRef({});
@@ -151,9 +155,39 @@ window.Students = function Students({ user }) {
   const [saving, setSaving] = React.useState(false);
   const [errors, setErrors] = React.useState({});
   const [contactErrors, setContactErrors] = React.useState({});
+  const [disciplineForm, setDisciplineForm] = React.useState({
+    student_id: '',
+    rule_id: '',
+    incident_date: new Date().toISOString().slice(0, 10),
+    details: '',
+    location: '',
+    action_taken: '',
+    warning_level: '',
+    parent_guardian_notified: false,
+  });
 
   const openAdd = () => { setForm(EMPTY); setErrors({}); setModal('add'); };
   const openEdit = (s) => { if (!isAdmin) return; setForm({ ...s, fee_amount: String(s.fee_amount) }); setErrors({}); setModal(s); };
+  const openDiscipline = async (s) => {
+    if (!canManageDiscipline) return;
+    try {
+      const rules = await api('/api/discipline/rules?active=1');
+      setDisciplineRules(rules);
+      setDisciplineForm({
+        student_id: s.id,
+        rule_id: '',
+        incident_date: new Date().toISOString().slice(0, 10),
+        details: '',
+        location: '',
+        action_taken: '',
+        warning_level: '',
+        parent_guardian_notified: false,
+      });
+      setDisciplineModal(s);
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -201,6 +235,24 @@ window.Students = function Students({ user }) {
       showToast(`${s.name} permanently deleted`);
       load();
     } catch (e) { showToast(e.message, 'error'); }
+  };
+
+  const submitDiscipline = async (e) => {
+    e.preventDefault();
+    if (!disciplineForm.rule_id || !disciplineForm.incident_date) {
+      showToast('Rule and incident date are required', 'error');
+      return;
+    }
+    setDisciplineSaving(true);
+    try {
+      await api('/api/discipline/records', { method: 'POST', body: disciplineForm });
+      showToast('Disciplinary violation recorded', 'success');
+      setDisciplineModal(null);
+    } catch (e2) {
+      showToast(e2.message, 'error');
+    } finally {
+      setDisciplineSaving(false);
+    }
   };
 
   const suggestStudentUsername = (student) => {
@@ -867,6 +919,7 @@ window.Students = function Students({ user }) {
               <>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => { closeMoreMenu(); openContacts(s); }}>Contacts</button>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => { closeMoreMenu(); openHistory(s); }}>Fee History</button>
+                {canManageDiscipline && s.status === 'active' && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { closeMoreMenu(); openDiscipline(s); }}>Add Violation</button>}
                 {isAdmin && s.user_id && <button type="button" className="btn btn-secondary btn-sm" onClick={() => { closeMoreMenu(); unlinkStudentLogin(s); }}>Unlink Account</button>}
                 {isAdmin && s.status === 'active' && <button type="button" className="btn btn-danger btn-sm" onClick={() => { closeMoreMenu(); handleDeactivate(s); }}>Deactivate Student</button>}
                 {isAdmin && s.status === 'inactive' && <button type="button" className="btn btn-danger btn-sm" onClick={() => { closeMoreMenu(); handlePermanentDelete(s); }}>Delete Permanently</button>}
@@ -875,6 +928,49 @@ window.Students = function Students({ user }) {
           })()}
         </div>,
         document.body
+      )}
+
+      {disciplineModal && (
+        <window.Modal title={`Add Violation — ${disciplineModal.name}`} onClose={() => setDisciplineModal(null)}>
+          <form onSubmit={submitDiscipline}>
+            <div className="form-grid">
+              <div className="form-group span2">
+                <label>Rule *</label>
+                <select value={disciplineForm.rule_id} onChange={(e) => setDisciplineForm((f) => ({ ...f, rule_id: e.target.value }))}>
+                  <option value="">Select rule…</option>
+                  {disciplineRules.map((r) => <option key={r.id} value={r.id}>[{r.rule_code}] {r.title} ({r.severity})</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Incident Date *</label>
+                <input type="date" value={disciplineForm.incident_date} onChange={(e) => setDisciplineForm((f) => ({ ...f, incident_date: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label>Warning Level</label>
+                <input type="number" min="1" value={disciplineForm.warning_level} onChange={(e) => setDisciplineForm((f) => ({ ...f, warning_level: e.target.value }))} />
+              </div>
+              <div className="form-group span2">
+                <label>Location</label>
+                <input value={disciplineForm.location} onChange={(e) => setDisciplineForm((f) => ({ ...f, location: e.target.value }))} />
+              </div>
+              <div className="form-group span2">
+                <label>Details</label>
+                <textarea rows={3} value={disciplineForm.details} onChange={(e) => setDisciplineForm((f) => ({ ...f, details: e.target.value }))} />
+              </div>
+              <div className="form-group span2">
+                <label>Action Taken</label>
+                <input value={disciplineForm.action_taken} onChange={(e) => setDisciplineForm((f) => ({ ...f, action_taken: e.target.value }))} />
+              </div>
+              <div className="form-group span2">
+                <label><input type="checkbox" checked={disciplineForm.parent_guardian_notified} onChange={(e) => setDisciplineForm((f) => ({ ...f, parent_guardian_notified: e.target.checked }))} /> Parent/guardian notified</label>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-secondary" onClick={() => setDisciplineModal(null)}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={disciplineSaving}>{disciplineSaving ? 'Saving…' : 'Save Record'}</button>
+            </div>
+          </form>
+        </window.Modal>
       )}
 
       {importResult && (
