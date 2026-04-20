@@ -190,6 +190,12 @@ const PAGE_META = {
     ctaType: 'page',
     targetPage: 'student_home',
   },
+  student_rules: {
+    subtitle: 'Read the complete school rules and compare them with any disciplinary record.',
+    ctaLabel: 'Open my discipline',
+    ctaType: 'page',
+    targetPage: 'student_discipline',
+  },
   change_password: {
     subtitle: 'Update your password before continuing to other pages.',
   },
@@ -474,6 +480,7 @@ const NAV_STUDENT = [
   { id: 'student_fees',     label: 'My Fees',        icon: 'fees' },
   { id: 'student_receipts',   label: 'My Receipts',    icon: 'book' },
   { id: 'student_discipline', label: 'My Discipline',  icon: 'discipline' },
+  { id: 'student_rules',      label: 'School Rules',   icon: 'book' },
   { section: 'Account' },
   { id: 'change_password',    label: 'Change Password',icon: 'lock' },
 ];
@@ -553,6 +560,7 @@ const PAGE_TITLES = {
   change_password:    'Change Password',
   discipline:         'Discipline',
   student_discipline: 'My Discipline',
+  student_rules:      'School Rules',
 };
 
 function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuToggle, onThemeToggle, themeMode }) {
@@ -674,7 +682,8 @@ function AppShell() {
       case 'ledger':       return <window.Ledger />;
       case 'reports':      return <window.Reports />;
       case 'discipline':   return role === 'admin' || role === 'teacher' ? <window.Discipline user={user} /> : <window.StatePanel type="blocked" message="Not allowed" />;
-      case 'student_discipline': return role === 'student' ? <window.StudentDiscipline user={user} /> : <window.StatePanel type="blocked" message="Not allowed" />;
+      case 'student_discipline': return role === 'student' ? <window.StudentDiscipline user={user} setPage={setPage} /> : <window.StatePanel type="blocked" message="Not allowed" />;
+      case 'student_rules': return role === 'student' ? <window.StudentRules user={user} /> : <window.StatePanel type="blocked" message="Not allowed" />;
       case 'users':        return role === 'admin' ? <window.UserManagement /> : <window.StatePanel type="blocked" message="Not allowed" />;
       case 'settings':
         return role === 'admin' ? <window.Settings mode="settings" onSaved={refreshSettings} /> : <window.StatePanel type="blocked" message="Not allowed" />;

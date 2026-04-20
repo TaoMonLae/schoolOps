@@ -423,6 +423,22 @@ router.put('/records/:id', requireAuth, requireRole('admin', 'teacher'), (req, r
 
 // ── Student: own records ──────────────────────────────────────────────────────
 
+// GET /api/discipline/me/rules
+router.get('/me/rules', requireAuth, (req, res) => {
+  if (req.user.role !== 'student') return res.status(403).json({ error: 'Students only.' });
+  const student = db.prepare('SELECT id FROM students WHERE user_id = ?').get(req.user.id);
+  if (!student) return res.status(404).json({ error: 'Student profile not found.' });
+
+  const rules = db.prepare(`
+    SELECT id, rule_code, title, category, article_reference, description, severity, default_action
+    FROM disciplinary_rules
+    WHERE active = 1
+    ORDER BY category, rule_code
+  `).all();
+
+  res.json({ rules });
+});
+
 // GET /api/discipline/me/records
 router.get('/me/records', requireAuth, (req, res) => {
   if (req.user.role !== 'student') return res.status(403).json({ error: 'Students only.' });

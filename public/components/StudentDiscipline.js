@@ -13,7 +13,7 @@
     return <span className={`badge ${map[s] || 'badge-gray'}`}>{s}</span>;
   }
 
-  window.StudentDiscipline = function StudentDiscipline() {
+  window.StudentDiscipline = function StudentDiscipline({ setPage }) {
     const { showToast } = useContext(window.ToastContext);
     const [records, setRecords] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -51,6 +51,12 @@
 
     const unacknowledgedCount = records.filter(r => !r.student_acknowledged_at).length;
     const pendingCount = records.filter(r => ['pending', 'reviewed', 'appealed'].includes(r.status)).length;
+    const openRelatedRule = (rec) => {
+      if (typeof setPage === 'function') setPage('student_rules');
+      window.dispatchEvent(new CustomEvent('student-rules:focus', {
+        detail: { ruleCode: rec.rule_code, category: rec.rule_category },
+      }));
+    };
 
     return (
       <div className="student-dashboard">
@@ -252,6 +258,19 @@
                       </button>
                     </div>
                   )}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => openRelatedRule(selected)}
+                  >
+                    Read related rule
+                  </button>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', alignSelf: 'center' }}>
+                    Compare this violation against the full School Rules.
+                  </div>
                 </div>
               </div>
 
