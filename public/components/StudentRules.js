@@ -1,7 +1,7 @@
 (function () {
   const { useState, useEffect, useMemo, useCallback, useContext } = React;
 
-  const CATEGORY_ORDER = [
+  const DEFAULT_CATEGORY_ORDER = [
     'General Conduct',
     'Academic Responsibilities',
     'Dress Code',
@@ -20,8 +20,61 @@
     'Prohibited Items',
   ];
 
-  function normalizeCategory(value) {
-    const key = String(value || '').toLowerCase();
+  const CATEGORY_ALIASES = new Map([
+    ['general conduct', 'General Conduct'],
+    ['academic responsibilities', 'Academic Responsibilities'],
+    ['dress code', 'Dress Code'],
+    ['use of school facilities', 'Use of School Facilities'],
+    ['facilities use', 'Use of School Facilities'],
+    ['mobile phones and electronics', 'Mobile Phones and Electronics'],
+    ['mobile phones electronics', 'Mobile Phones and Electronics'],
+    ['visitors and external contacts', 'Visitors and External Contacts'],
+    ['visitors', 'Visitors and External Contacts'],
+    ['health and hygiene', 'Health and Hygiene'],
+    ['disciplinary framework', 'Disciplinary Framework'],
+    ['hostel rules curfew', 'Hostel Rules / Curfew'],
+    ['hostel curfew', 'Hostel Rules / Curfew'],
+    ['dormitory conduct', 'Dormitory Conduct'],
+    ['gender separation policy', 'Gender Separation Policy'],
+    ['gender separation', 'Gender Separation Policy'],
+    ['kitchen and dining hall', 'Kitchen and Dining Hall'],
+    ['kitchen dining', 'Kitchen and Dining Hall'],
+    ['shared responsibilities and cleaning duties', 'Shared Responsibilities and Cleaning Duties'],
+    ['shared responsibilities', 'Shared Responsibilities and Cleaning Duties'],
+    ['security and safety', 'Security and Safety'],
+    ['safety', 'Security and Safety'],
+    ['study hours', 'Study Hours'],
+    ['prohibited items', 'Prohibited Items'],
+  ]);
+
+  const RULE_CODE_PREFIX_TO_SECTION = {
+    GC: 'General Conduct',
+    AR: 'Academic Responsibilities',
+    DC: 'Dress Code',
+    FU: 'Use of School Facilities',
+    MP: 'Mobile Phones and Electronics',
+    VI: 'Visitors and External Contacts',
+    HH: 'Health and Hygiene',
+    DF: 'Disciplinary Framework',
+    HC: 'Hostel Rules / Curfew',
+    DO: 'Dormitory Conduct',
+    GS: 'Gender Separation Policy',
+    KD: 'Kitchen and Dining Hall',
+    SR: 'Shared Responsibilities and Cleaning Duties',
+    SF: 'Security and Safety',
+    SH: 'Study Hours',
+    PI: 'Prohibited Items',
+  };
+
+  function normalizeCategory(value, ruleCode) {
+    const key = String(value || '')
+      .toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (CATEGORY_ALIASES.has(key)) return CATEGORY_ALIASES.get(key);
     if (key.includes('general')) return 'General Conduct';
     if (key.includes('academic')) return 'Academic Responsibilities';
     if (key.includes('dress')) return 'Dress Code';
@@ -38,7 +91,10 @@
     if (key.includes('safety') || key.includes('security')) return 'Security and Safety';
     if (key.includes('study')) return 'Study Hours';
     if (key.includes('prohibited') || key.includes('contraband')) return 'Prohibited Items';
-    return value || 'General Conduct';
+
+    const prefix = String(ruleCode || '').toUpperCase().split('-')[0];
+    if (RULE_CODE_PREFIX_TO_SECTION[prefix]) return RULE_CODE_PREFIX_TO_SECTION[prefix];
+    return 'General Conduct';
   }
 
   function slugify(value) {
@@ -57,6 +113,7 @@
   window.StudentRules = function StudentRules() {
     const { showToast } = useContext(window.ToastContext);
     const [rules, setRules] = useState([]);
+    const [sections, setSections] = useState(DEFAULT_CATEGORY_ORDER);
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
@@ -64,6 +121,7 @@
       try {
         const data = await api('/api/discipline/me/rules');
         setRules(Array.isArray(data.rules) ? data.rules : []);
+        setSections(Array.isArray(data.sections) && data.sections.length ? data.sections : DEFAULT_CATEGORY_ORDER);
       } catch (e) {
         showToast(e.message, 'error');
       } finally {
@@ -75,16 +133,16 @@
 
     const grouped = useMemo(() => {
       const map = {};
-      CATEGORY_ORDER.forEach((section) => { map[section] = []; });
+      sections.forEach((section) => { map[section] = []; });
 
       rules.forEach((rule) => {
-        const normalized = normalizeCategory(rule.category);
+        const normalized = normalizeCategory(rule.normalized_category || rule.category, rule.rule_code);
         if (!map[normalized]) map[normalized] = [];
         map[normalized].push({ ...rule, normalized_category: normalized });
       });
 
       return map;
-    }, [rules]);
+    }, [rules, sections]);
 
     useEffect(() => {
       const handler = (event) => {
@@ -127,7 +185,7 @@
           <aside className="student-rules-toc card">
             <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8 }}>Sections</div>
             <div style={{ display: 'grid', gap: 6 }}>
-              {CATEGORY_ORDER.map((section) => (
+              {sections.map((section) => (
                 <a key={section} href={`#section-${slugify(section)}`} className="student-rules-link">
                   {section}
                 </a>
@@ -136,7 +194,7 @@
           </aside>
 
           <div style={{ display: 'grid', gap: 12 }}>
-            {CATEGORY_ORDER.map((section) => {
+            {sections.map((section) => {
               const sectionRules = grouped[section] || [];
               return (
                 <section key={section} id={`section-${slugify(section)}`} className="card student-rules-section">
