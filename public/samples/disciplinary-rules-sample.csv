@@ -1,0 +1,4 @@
+rule_code,title,category,article_reference,severity,default_action,description,active
+GEN-001,Disrespectful behaviour,General Conduct,Article 1,moderate,Meeting with coordinator/principal/teacher; formal record,Student failed to treat teachers staff fellow students or visitors with basic respect,true
+ACA-004,Cheating copying or plagiarism,Academic Responsibilities,Article 2,serious,Leadership review; formal disciplinary record,Student engaged in cheating copying or plagiarism in any form,true
+HOS-003,AWOL or failure to return,Hostel / Curfew,Article 9,serious,Immediate guardian contact; leadership review,Student failed to return and did not notify staff,true

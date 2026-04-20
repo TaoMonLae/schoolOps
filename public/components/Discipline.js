@@ -7,6 +7,10 @@
 
   const SEVERITIES = ['minor', 'moderate', 'serious'];
   const STATUSES   = ['pending', 'reviewed', 'confirmed', 'resolved', 'appealed'];
+  const SAMPLE_RULES_CSV = `rule_code,title,category,article_reference,severity,default_action,description,active
+GEN-001,Disrespectful behaviour,General Conduct,Article 1,moderate,Meeting with coordinator/principal/teacher; formal record,Student failed to treat teachers staff fellow students or visitors with basic respect,true
+ACA-004,Cheating copying or plagiarism,Academic Responsibilities,Article 2,serious,Leadership review; formal disciplinary record,Student engaged in cheating copying or plagiarism in any form,true
+HOS-003,AWOL or failure to return,Hostel / Curfew,Article 9,serious,Immediate guardian contact; leadership review,Student failed to return and did not notify staff,true`;
   const CATEGORIES = [
     'General Conduct', 'Academic Responsibilities', 'Dress Code',
     'Facilities Use', 'Mobile Phones & Electronics', 'Visitors',
@@ -212,11 +216,94 @@
     );
   }
 
+  function ImportRulesTab() {
+    const { showToast } = useContext(window.ToastContext);
+    const [csvText, setCsvText] = useState(SAMPLE_RULES_CSV);
+    const [busy, setBusy] = useState(false);
+    const [result, setResult] = useState(null);
+
+    const runImport = async () => {
+      if (!csvText.trim()) {
+        showToast('Paste CSV content first.', 'error');
+        return;
+      }
+      setBusy(true);
+      try {
+        const summary = await api('/api/discipline/rules/import-csv', { method: 'POST', body: { csv: csvText } });
+        setResult(summary);
+        showToast('CSV import completed.', 'success');
+      } catch (e) {
+        showToast(e.message, 'error');
+      } finally {
+        setBusy(false);
+      }
+    };
+
+    const downloadSample = () => {
+      const blob = new Blob([SAMPLE_RULES_CSV], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'disciplinary-rules-sample.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    return (
+      <div className="card" style={{ display: 'grid', gap: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+          <div>
+            <strong>Import disciplinary rules (CSV)</strong>
+            <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 2 }}>
+              Headers must match exactly: rule_code,title,category,article_reference,severity,default_action,description,active
+            </div>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={downloadSample}>Download Sample CSV</button>
+        </div>
+
+        <textarea
+          rows={12}
+          value={csvText}
+          onChange={(e) => setCsvText(e.target.value)}
+          style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 }}
+        />
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn btn-primary" onClick={runImport} disabled={busy}>{busy ? 'Importing…' : 'Import CSV'}</button>
+          <button className="btn btn-secondary" onClick={() => setCsvText(SAMPLE_RULES_CSV)}>Reset to Sample</button>
+        </div>
+
+        {result && (
+          <div style={{ marginTop: 8 }}>
+            <div className="inline-stats">
+              <span>Inserted: <strong style={{ color: 'var(--green)' }}>{result.inserted}</strong></span>
+              <span>Updated: <strong>{result.updated}</strong></span>
+              <span>Skipped: <strong>{result.skipped}</strong></span>
+              <span>Errors: <strong style={{ color: 'var(--red)' }}>{result.errors}</strong></span>
+            </div>
+            {result.row_errors?.length > 0 && (
+              <div style={{ marginTop: 10, maxHeight: 240, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: 10 }}>
+                {result.row_errors.map((row, idx) => (
+                  <div key={idx} style={{ marginBottom: 8 }}>
+                    <strong>Row {row.row}</strong>
+                    <ul style={{ marginTop: 2 }}>
+                      {row.errors.map((err, i) => <li key={i}>{err}</li>)}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ── Violations ───────────────────────────────────────────────────────────────
 
   const REC_EMPTY = {
     student_id: '', rule_id: '', incident_date: new Date().toISOString().slice(0, 10),
-    location: '', details: '', action_taken: '', warning_level: '', parent_guardian_notified: false,
+    location: '', details: '', action_taken: '', warning_level: '', parent_guardian_notified: false, attachment_url: '',
   };
 
   function ViolationsTab({ user }) {
@@ -420,6 +507,10 @@
                     <label>Action Taken</label>
                     <input value={form.action_taken} onChange={e => setForm(f => ({ ...f, action_taken: e.target.value }))} placeholder={selectedRule?.default_action || 'e.g. Verbal warning issued'} />
                   </div>
+                  <div className="form-group span2">
+                    <label>Attachment URL/Path</label>
+                    <input value={form.attachment_url} onChange={e => setForm(f => ({ ...f, attachment_url: e.target.value }))} placeholder="https://... or /path/to/file" />
+                  </div>
                   <div className="form-group">
                     <label>Warning Level (number)</label>
                     <input type="number" min="1" value={form.warning_level} onChange={e => setForm(f => ({ ...f, warning_level: e.target.value }))} placeholder="1, 2, 3…" />
@@ -464,6 +555,9 @@
                 {detailModal.action_taken && (
                   <div><label>Action Taken</label><div style={{ padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>{detailModal.action_taken}</div></div>
                 )}
+                {detailModal.attachment && (
+                  <div><label>Attachment</label><div style={{ padding: '10px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13 }}>{detailModal.attachment}</div></div>
+                )}
                 <div>
                   <label>Student Acknowledgement</label>
                   {detailModal.student_acknowledged_at
@@ -507,6 +601,7 @@
           {[
             { id: 'violations', label: 'Violations' },
             { id: 'rules',      label: 'Rules Management' },
+            { id: 'import',     label: 'Import CSV' },
           ].map(t => (
             <button
               key={t.id}
@@ -530,7 +625,9 @@
           ))}
         </div>
 
-        {tab === 'violations' ? <ViolationsTab user={user} /> : <RulesTab />}
+        {tab === 'violations' && <ViolationsTab user={user} />}
+        {tab === 'rules' && <RulesTab />}
+        {tab === 'import' && <ImportRulesTab />}
       </div>
     );
   };

@@ -50,9 +50,16 @@
     };
 
     const unacknowledgedCount = records.filter(r => !r.student_acknowledged_at).length;
+    const pendingCount = records.filter(r => ['pending', 'reviewed', 'appealed'].includes(r.status)).length;
 
     return (
       <div className="student-dashboard">
+        <div className="inline-stats" style={{ marginBottom: 14 }}>
+          <span>Total violations: <strong>{records.length}</strong></span>
+          <span>Active / pending: <strong>{pendingCount}</strong></span>
+          <span>Awaiting acknowledgement: <strong style={{ color: 'var(--red)' }}>{unacknowledgedCount}</strong></span>
+        </div>
+
         {unacknowledgedCount > 0 && (
           <div style={{
             background: 'var(--red-light)', border: '1px solid var(--red)',
