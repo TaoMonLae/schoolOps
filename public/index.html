@@ -2006,6 +2006,52 @@
       .topbar .page-kicker { display: none; }
       .topbar-page-select { display: none; }
     }
+
+    .student-rules-layout {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 12px;
+      align-items: start;
+    }
+    .student-rules-toc {
+      position: sticky;
+      top: calc(var(--header-h) + 12px);
+      max-height: calc(100vh - var(--header-h) - 24px);
+      overflow: auto;
+    }
+    .student-rules-link {
+      font-size: 12px;
+      color: var(--mid);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 9px;
+      background: var(--bg);
+      transition: border-color .15s, background .15s;
+    }
+    .student-rules-link:hover {
+      border-color: var(--brand);
+      background: var(--brand-light);
+    }
+    .student-rule-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: var(--card);
+      overflow-wrap: anywhere;
+    }
+    .rule-spotlight {
+      outline: 2px solid var(--brand);
+      outline-offset: 2px;
+    }
+    @media (max-width: 920px) {
+      .student-rules-layout {
+        grid-template-columns: 1fr;
+      }
+      .student-rules-toc {
+        position: static;
+        max-height: none;
+      }
+    }
   </style>
 </head>
 <body>
@@ -2031,6 +2077,7 @@
   <script type="text/babel" src="components/ChangePassword.js" data-presets="react"></script>
   <script type="text/babel" src="components/Discipline.js" data-presets="react"></script>
   <script type="text/babel" src="components/StudentDiscipline.js" data-presets="react"></script>
+  <script type="text/babel" src="components/StudentRules.js" data-presets="react"></script>
   <script type="text/babel" src="components/Notifications.js" data-presets="react"></script>
   <script type="text/babel" src="components/Cashbook.js" data-presets="react"></script>
   <script type="text/babel" src="components/Ledger.js" data-presets="react"></script>
