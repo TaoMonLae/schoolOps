@@ -64,6 +64,8 @@ function NavIcon({ name, size = 16 }) {
       return <svg {...p}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>;
     case 'sun':
       return <svg {...p}><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></svg>;
+    case 'discipline':
+      return <svg {...p}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>;
     default:
       return null;
   }
@@ -178,6 +180,15 @@ const PAGE_META = {
   },
   health: {
     subtitle: 'Check backup status, environment, and core system health.',
+  },
+  discipline: {
+    subtitle: 'Manage disciplinary rules and record violations against student accounts.',
+  },
+  student_discipline: {
+    subtitle: 'View your disciplinary records and acknowledge any outstanding notices.',
+    ctaLabel: 'Back to dashboard',
+    ctaType: 'page',
+    targetPage: 'student_home',
   },
   change_password: {
     subtitle: 'Update your password before continuing to other pages.',
@@ -426,6 +437,8 @@ const NAV_ADMIN = [
   { id: 'ledger',      label: 'Ledger & Accounts',  icon: 'ledger' },
   { section: 'Reports' },
   { id: 'reports',     label: 'Monthly Report',     icon: 'reports' },
+  { section: 'Discipline' },
+  { id: 'discipline',  label: 'Discipline',          icon: 'discipline' },
   { section: 'Access' },
   { id: 'users',       label: 'Users',              icon: 'users' },
   { id: 'settings',    label: 'Settings',           icon: 'settings' },
@@ -459,9 +472,10 @@ const NAV_STUDENT = [
   { id: 'duty_history',     label: 'My Duty History',icon: 'clock' },
   { id: 'student_movement', label: 'Out / In',       icon: 'arrows' },
   { id: 'student_fees',     label: 'My Fees',        icon: 'fees' },
-  { id: 'student_receipts', label: 'My Receipts',    icon: 'book' },
+  { id: 'student_receipts',   label: 'My Receipts',    icon: 'book' },
+  { id: 'student_discipline', label: 'My Discipline',  icon: 'discipline' },
   { section: 'Account' },
-  { id: 'change_password',  label: 'Change Password',icon: 'lock' },
+  { id: 'change_password',    label: 'Change Password',icon: 'lock' },
 ];
 
 function Sidebar({ page, setPage, user, logout, settings, mobileOpen, onClose }) {
@@ -536,7 +550,9 @@ const PAGE_TITLES = {
   users:            'User Management',
   settings:         'System Settings',
   health:           'System Status',
-  change_password:  'Change Password',
+  change_password:    'Change Password',
+  discipline:         'Discipline',
+  student_discipline: 'My Discipline',
 };
 
 function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuToggle, onThemeToggle, themeMode }) {
@@ -657,6 +673,8 @@ function AppShell() {
       case 'cashbook':     return <window.Cashbook />;
       case 'ledger':       return <window.Ledger />;
       case 'reports':      return <window.Reports />;
+      case 'discipline':   return role === 'admin' || role === 'teacher' ? <window.Discipline user={user} /> : <window.StatePanel type="blocked" message="Not allowed" />;
+      case 'student_discipline': return role === 'student' ? <window.StudentDiscipline user={user} /> : <window.StatePanel type="blocked" message="Not allowed" />;
       case 'users':        return role === 'admin' ? <window.UserManagement /> : <window.StatePanel type="blocked" message="Not allowed" />;
       case 'settings':
         return role === 'admin' ? <window.Settings mode="settings" onSaved={refreshSettings} /> : <window.StatePanel type="blocked" message="Not allowed" />;
