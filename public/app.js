@@ -268,7 +268,53 @@ function AuthProvider({ children }) {
   );
 }
 
-// ── Login Page ────────────────────────────────────────────────────────────────
+const LANDING_VALUE_POINTS = [
+  'Built for school administration',
+  'Student and admin portals',
+  'Mobile-friendly workflows',
+  'Clear operational visibility',
+];
+
+const LANDING_PROBLEMS = [
+  'Too much manual admin work across multiple tools',
+  'Scattered records that are hard to verify quickly',
+  'Messy fee tracking and delayed receipt follow-up',
+  'Duty and inventory logs that are difficult to manage',
+  'Limited visibility for principals and operations staff',
+];
+
+const LANDING_FEATURES = [
+  { icon: 'students', title: 'Student Management', description: 'Keep profiles, contacts, and lifecycle status organized in one reliable system.' },
+  { icon: 'fees', title: 'Fees & Receipts', description: 'Track payments, issue receipts, and follow arrears with finance-ready records.' },
+  { icon: 'duty', title: 'Duty Logs', description: 'Review student duty submissions, approvals, and updates in one streamlined flow.' },
+  { icon: 'attendance', title: 'Attendance', description: 'Capture attendance quickly and monitor patterns with clear class-level visibility.' },
+  { icon: 'inventory', title: 'Inventory', description: 'Track stock levels, movements, and reorder risks to avoid operational shortages.' },
+  { icon: 'reports', title: 'Reports & Oversight', description: 'Generate reports for leadership with accurate operational and finance snapshots.' },
+];
+
+const LANDING_ADMIN_POINTS = [
+  'Manage student and operational records',
+  'Monitor fee payments and receipt history',
+  'Review submissions and pending tasks',
+  'Oversee daily school operations in one dashboard',
+];
+
+const LANDING_STUDENT_POINTS = [
+  'View receipts and payment history',
+  'Check fee status and outstanding balances',
+  'Submit duty logs with supporting details',
+  'Track submission status and progress updates',
+];
+
+const LANDING_BENEFITS = [
+  'One platform instead of scattered spreadsheets',
+  'Better accountability across teams',
+  'Faster workflows for everyday administration',
+  'Improved operational visibility for leadership',
+  'Mobile access for staff and students on the go',
+];
+
+// ── Login + Landing Page ──────────────────────────────────────────────────────
 function LoginPage() {
   const { login, settings } = useContext(AuthContext);
   const [form, setForm] = useState({ username: '', password: '' });
@@ -289,55 +335,218 @@ function LoginPage() {
   };
 
   return (
-    <div className="login-wrap">
-      <div className="login-shell" style={{ gridTemplateColumns: 'minmax(320px, 420px)', justifyContent: 'center' }}>
-        <div className="login-card">
-          <div className="login-logo">
-            {settings.logo_url ? (
-              <img src={settings.logo_url} alt={`${settings.school_name} logo`} className="brand-logo brand-logo-login" />
-            ) : (
-              <div className="login-logo-mark">
-                <NavIcon name="book" size={44} />
-              </div>
-            )}
-            <h1>{settings.school_name}</h1>
-            <small>{settings.subtitle}</small>
-          </div>
-          {error && <div className="login-error">{error}</div>}
-          <form className="login-form" onSubmit={handle}>
-            <div className="form-group">
-              <label>Username</label>
-              <input
-                value={form.username}
-                onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-                placeholder="Enter username"
-                required autoFocus
-              />
-            </div>
-            <div className="form-group">
-              <label>Password</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                placeholder="Enter password"
-                required
-              />
-            </div>
-            <button className="btn btn-primary login-submit" type="submit" disabled={busy}>
-              {busy ? 'Signing in…' : 'Sign In'}
-            </button>
-          </form>
-          {showDemoCredentials && (
-            <div style={{ marginTop: 20, padding: '12px 14px', background: '#f7faff', borderRadius: 14, fontSize: 12, color: 'var(--mid)', lineHeight: 1.8, border: '1px solid var(--border)' }}>
-              <strong>Demo accounts (development only):</strong><br />
-              Admin: <code>admin / admin123</code><br />
-              Teacher: <code>teacher1 / teacher123</code><br />
-              Student: <code>student1 / student123</code>
+    <div className="landing-wrap">
+      <header className="landing-nav">
+        <div className="landing-brand">
+          {settings.logo_url ? (
+            <img src={settings.logo_url} alt={`${settings.school_name} logo`} className="brand-logo brand-logo-login" />
+          ) : (
+            <div className="login-logo-mark">
+              <NavIcon name="book" size={30} />
             </div>
           )}
+          <div>
+            <strong>{settings.school_name}</strong>
+            <span>School operations platform</span>
+          </div>
         </div>
-      </div>
+        <a className="btn btn-secondary btn-sm" href="#signin">Staff Sign In</a>
+      </header>
+
+      <main className="landing-main">
+        <section className="landing-hero">
+          <div className="landing-hero-copy">
+            <span className="landing-kicker">Built for modern schools</span>
+            <h1>Run your school operations in one place</h1>
+            <p>
+              Manage students, fees, receipts, duty logs, attendance, inventory, and reporting
+              from one streamlined platform.
+            </p>
+            <div className="landing-cta-row">
+              <a className="btn btn-primary" href="#cta">Book a Demo</a>
+              <a className="btn btn-secondary" href="#features">See Features</a>
+            </div>
+          </div>
+          <div className="landing-hero-visual" aria-hidden="true">
+            <div className="preview-header">
+              <span />
+              <span />
+              <span />
+            </div>
+            <div className="preview-grid">
+              <article>
+                <small>Active students</small>
+                <strong>1,248</strong>
+                <em>+4.3% this term</em>
+              </article>
+              <article>
+                <small>Fees collected</small>
+                <strong>RM 412k</strong>
+                <em>92% on-time</em>
+              </article>
+              <article>
+                <small>Attendance today</small>
+                <strong>97.4%</strong>
+                <em>18 classes tracked</em>
+              </article>
+              <article>
+                <small>Low stock alerts</small>
+                <strong>5 items</strong>
+                <em>Reorder suggested</em>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-trust-strip">
+          {LANDING_VALUE_POINTS.map(point => <span key={point}>{point}</span>)}
+        </section>
+
+        <section className="landing-section">
+          <div className="landing-section-head">
+            <h2>The operational problems schools face every day</h2>
+            <p>SchoolOps replaces fragmented spreadsheets and manual follow-up with a single workflow.</p>
+          </div>
+          <div className="landing-problem-grid">
+            {LANDING_PROBLEMS.map(point => (
+              <article key={point} className="landing-card">
+                <strong>{point}</strong>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="landing-section" id="features">
+          <div className="landing-section-head">
+            <h2>Features designed for school administration teams</h2>
+          </div>
+          <div className="landing-feature-grid">
+            {LANDING_FEATURES.map(feature => (
+              <article key={feature.title} className="landing-card feature-card">
+                <span className="feature-icon"><NavIcon name={feature.icon} size={18} /></span>
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="landing-section landing-role-grid">
+          <article className="landing-card role-card">
+            <h3>For Admins</h3>
+            <ul>
+              {LANDING_ADMIN_POINTS.map(item => <li key={item}>{item}</li>)}
+            </ul>
+          </article>
+          <article className="landing-card role-card">
+            <h3>For Students</h3>
+            <ul>
+              {LANDING_STUDENT_POINTS.map(item => <li key={item}>{item}</li>)}
+            </ul>
+          </article>
+        </section>
+
+        <section className="landing-section">
+          <div className="landing-section-head">
+            <h2>Product preview</h2>
+            <p>Realistic dashboard snapshots to show how teams work in SchoolOps.</p>
+          </div>
+          <div className="landing-preview-grid" aria-label="Product preview cards">
+            <article className="landing-card preview-card">
+              <h3>Finance Overview</h3>
+              <p>Receipts, arrears, and monthly collections at a glance.</p>
+            </article>
+            <article className="landing-card preview-card">
+              <h3>Duty & Attendance</h3>
+              <p>Review logs, pending approvals, and attendance trends quickly.</p>
+            </article>
+            <article className="landing-card preview-card">
+              <h3>Inventory Watch</h3>
+              <p>Monitor stock, reorder levels, and movement history with confidence.</p>
+            </article>
+          </div>
+        </section>
+
+        <section className="landing-section">
+          <div className="landing-section-head">
+            <h2>Why schools choose SchoolOps</h2>
+          </div>
+          <div className="landing-benefits">
+            {LANDING_BENEFITS.map(item => (
+              <article key={item} className="landing-card benefit-item">
+                <span aria-hidden="true">✓</span>
+                <p>{item}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="landing-cta" id="cta">
+          <div>
+            <h2>Ready to simplify school operations?</h2>
+            <p>Book a guided walkthrough with the SchoolOps team or contact us for deployment support.</p>
+          </div>
+          <div className="landing-cta-row">
+            <a className="btn btn-primary" href="mailto:demo@schoolops.app?subject=Book%20a%20SchoolOps%20Demo">Book a Demo</a>
+            <a className="btn btn-secondary" href="mailto:hello@schoolops.app?subject=SchoolOps%20Contact%20Inquiry">Contact Us</a>
+          </div>
+        </section>
+
+        <section className="landing-section landing-signin" id="signin">
+          <div className="landing-section-head">
+            <h2>Already using SchoolOps?</h2>
+            <p>Sign in below to access your workspace.</p>
+          </div>
+          <div className="login-card">
+            <div className="login-logo">
+              <h3>Staff Sign In</h3>
+            </div>
+            {error && <div className="login-error">{error}</div>}
+            <form className="login-form" onSubmit={handle}>
+              <div className="form-group">
+                <label htmlFor="username">Username</label>
+                <input
+                  id="username"
+                  value={form.username}
+                  onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                  placeholder="Enter username"
+                  required autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="password">Password</label>
+                <input
+                  id="password"
+                  type="password"
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Enter password"
+                  required
+                />
+              </div>
+              <button className="btn btn-primary login-submit" type="submit" disabled={busy}>
+                {busy ? 'Signing in…' : 'Sign In'}
+              </button>
+            </form>
+            {showDemoCredentials && (
+              <div style={{ marginTop: 20, padding: '12px 14px', background: '#f7faff', borderRadius: 14, fontSize: 12, color: 'var(--mid)', lineHeight: 1.8, border: '1px solid var(--border)' }}>
+                <strong>Demo accounts (development only):</strong><br />
+                Admin: <code>admin / admin123</code><br />
+                Teacher: <code>teacher1 / teacher123</code><br />
+                Student: <code>student1 / student123</code>
+              </div>
+            )}
+          </div>
+        </section>
+      </main>
+
+      <footer className="landing-footer">
+        <a href="#cta">Product</a>
+        <a href="#features">Features</a>
+        <a href="mailto:hello@schoolops.app?subject=SchoolOps%20Contact%20Inquiry">Contact</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+      </footer>
     </div>
   );
 }
