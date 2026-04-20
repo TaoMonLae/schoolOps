@@ -7,6 +7,108 @@ const router = express.Router();
 const VALID_SEVERITIES = ['minor', 'moderate', 'serious'];
 const VALID_STATUSES   = ['pending', 'reviewed', 'confirmed', 'resolved', 'appealed'];
 const RULE_CSV_HEADERS = ['rule_code', 'title', 'category', 'article_reference', 'severity', 'default_action', 'description', 'active'];
+const STUDENT_RULE_SECTIONS = [
+  'General Conduct',
+  'Academic Responsibilities',
+  'Dress Code',
+  'Use of School Facilities',
+  'Mobile Phones and Electronics',
+  'Visitors and External Contacts',
+  'Health and Hygiene',
+  'Disciplinary Framework',
+  'Hostel Rules / Curfew',
+  'Dormitory Conduct',
+  'Gender Separation Policy',
+  'Kitchen and Dining Hall',
+  'Shared Responsibilities and Cleaning Duties',
+  'Security and Safety',
+  'Study Hours',
+  'Prohibited Items',
+];
+
+const STUDENT_RULE_CATEGORY_ALIASES = new Map([
+  ['general conduct', 'General Conduct'],
+  ['academic responsibilities', 'Academic Responsibilities'],
+  ['dress code', 'Dress Code'],
+  ['use of school facilities', 'Use of School Facilities'],
+  ['facilities use', 'Use of School Facilities'],
+  ['mobile phones and electronics', 'Mobile Phones and Electronics'],
+  ['mobile phones & electronics', 'Mobile Phones and Electronics'],
+  ['visitors and external contacts', 'Visitors and External Contacts'],
+  ['visitors', 'Visitors and External Contacts'],
+  ['health and hygiene', 'Health and Hygiene'],
+  ['health & hygiene', 'Health and Hygiene'],
+  ['disciplinary framework', 'Disciplinary Framework'],
+  ['hostel rules / curfew', 'Hostel Rules / Curfew'],
+  ['hostel / curfew', 'Hostel Rules / Curfew'],
+  ['dormitory conduct', 'Dormitory Conduct'],
+  ['gender separation policy', 'Gender Separation Policy'],
+  ['gender separation', 'Gender Separation Policy'],
+  ['kitchen and dining hall', 'Kitchen and Dining Hall'],
+  ['kitchen / dining', 'Kitchen and Dining Hall'],
+  ['shared responsibilities and cleaning duties', 'Shared Responsibilities and Cleaning Duties'],
+  ['shared responsibilities', 'Shared Responsibilities and Cleaning Duties'],
+  ['security and safety', 'Security and Safety'],
+  ['safety', 'Security and Safety'],
+  ['study hours', 'Study Hours'],
+  ['prohibited items', 'Prohibited Items'],
+]);
+
+function normalizeCategoryKey(value) {
+  return normalizeText(value)
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function mapRuleToSection(category, ruleCode) {
+  const normalizedCategory = normalizeCategoryKey(category);
+  if (STUDENT_RULE_CATEGORY_ALIASES.has(normalizedCategory)) {
+    return STUDENT_RULE_CATEGORY_ALIASES.get(normalizedCategory);
+  }
+
+  if (normalizedCategory.includes('general')) return 'General Conduct';
+  if (normalizedCategory.includes('academic')) return 'Academic Responsibilities';
+  if (normalizedCategory.includes('dress')) return 'Dress Code';
+  if (normalizedCategory.includes('facilities') || normalizedCategory.includes('facility')) return 'Use of School Facilities';
+  if (normalizedCategory.includes('mobile') || normalizedCategory.includes('electronic') || normalizedCategory.includes('phone')) return 'Mobile Phones and Electronics';
+  if (normalizedCategory.includes('visitor') || normalizedCategory.includes('external')) return 'Visitors and External Contacts';
+  if (normalizedCategory.includes('health') || normalizedCategory.includes('hygiene')) return 'Health and Hygiene';
+  if (normalizedCategory.includes('disciplinary')) return 'Disciplinary Framework';
+  if (normalizedCategory.includes('hostel') || normalizedCategory.includes('curfew')) return 'Hostel Rules / Curfew';
+  if (normalizedCategory.includes('dormitory') || normalizedCategory.includes('dorm')) return 'Dormitory Conduct';
+  if (normalizedCategory.includes('gender')) return 'Gender Separation Policy';
+  if (normalizedCategory.includes('kitchen') || normalizedCategory.includes('dining')) return 'Kitchen and Dining Hall';
+  if (normalizedCategory.includes('shared') || normalizedCategory.includes('clean')) return 'Shared Responsibilities and Cleaning Duties';
+  if (normalizedCategory.includes('security') || normalizedCategory.includes('safety')) return 'Security and Safety';
+  if (normalizedCategory.includes('study')) return 'Study Hours';
+  if (normalizedCategory.includes('prohibited') || normalizedCategory.includes('contraband')) return 'Prohibited Items';
+
+  const prefix = normalizeText(ruleCode).toUpperCase().split('-')[0];
+  const prefixMap = {
+    GC: 'General Conduct',
+    AR: 'Academic Responsibilities',
+    DC: 'Dress Code',
+    FU: 'Use of School Facilities',
+    MP: 'Mobile Phones and Electronics',
+    VI: 'Visitors and External Contacts',
+    HH: 'Health and Hygiene',
+    DF: 'Disciplinary Framework',
+    HC: 'Hostel Rules / Curfew',
+    DO: 'Dormitory Conduct',
+    GS: 'Gender Separation Policy',
+    KD: 'Kitchen and Dining Hall',
+    SR: 'Shared Responsibilities and Cleaning Duties',
+    SF: 'Security and Safety',
+    SH: 'Study Hours',
+    PI: 'Prohibited Items',
+  };
+  if (prefixMap[prefix]) return prefixMap[prefix];
+
+  return 'General Conduct';
+}
 
 function normalizeText(value) {
   if (value === undefined || value === null) return '';
@@ -432,11 +534,17 @@ router.get('/me/rules', requireAuth, (req, res) => {
   const rules = db.prepare(`
     SELECT id, rule_code, title, category, article_reference, description, severity, default_action
     FROM disciplinary_rules
-    WHERE active = 1
+    WHERE (
+      active = 1
+      OR lower(trim(CAST(active AS TEXT))) IN ('1', 'true', 'yes')
+    )
     ORDER BY category, rule_code
-  `).all();
+  `).all().map((rule) => ({
+    ...rule,
+    normalized_category: mapRuleToSection(rule.category, rule.rule_code),
+  }));
 
-  res.json({ rules });
+  res.json({ rules, sections: STUDENT_RULE_SECTIONS });
 });
 
 // GET /api/discipline/me/records
