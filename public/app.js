@@ -686,10 +686,6 @@ function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuT
   const roleLabel = user?.role ? `${String(user.role).charAt(0).toUpperCase()}${String(user.role).slice(1)}` : 'Account';
   const identityLabel = `${user?.name || 'User'} · ${roleLabel}`;
 
-  const handleCTA = () => {
-    if (pageMeta.ctaType === 'page' && pageMeta.targetPage) setPage(pageMeta.targetPage);
-    if (pageMeta.ctaType === 'action' && pageMeta.action === 'refresh') window.dispatchEvent(new CustomEvent('dashboard:refresh'));
-  };
 
   return (
     <div className="topbar">
@@ -723,11 +719,6 @@ function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuT
         >
           {pageOptions.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
         </select>
-        {pageMeta.ctaLabel ? (
-          <button className="btn btn-secondary btn-sm topbar-cta" type="button" onClick={handleCTA} disabled={forcePasswordChange}>
-            {pageMeta.ctaLabel}
-          </button>
-        ) : null}
         <button
           className="btn btn-secondary btn-sm topbar-cta"
           type="button"
