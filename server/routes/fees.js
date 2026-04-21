@@ -12,6 +12,74 @@ const MONTHS = [
   'January','February','March','April','May','June',
   'July','August','September','October','November','December',
 ];
+const COUNCIL_FEE_PERMISSION_MAP = {
+  treasurer: ['fees.view', 'fees.record_payment', 'fees.upload_proof', 'fees.view_schoolwide_summary', 'fees.view_followups'],
+  president: ['fees.view', 'fees.approve_payment', 'fees.view_schoolwide_summary', 'fees.view_followups'],
+  secretary: ['fees.view', 'fees.view_schoolwide_summary', 'fees.view_followups', 'fees.manage_followups'],
+  boys_hostel_monitor: ['fees.view_hostel_scope', 'fees.view_followups', 'fees.manage_followups'],
+  girls_hostel_monitor: ['fees.view_hostel_scope', 'fees.view_followups', 'fees.manage_followups'],
+};
+
+function getLinkedStudentId(userId) {
+  const row = db.prepare('SELECT id FROM students WHERE user_id = ?').get(userId);
+  return row?.id || null;
+}
+
+function getCurrentCouncilRole(studentId) {
+  if (!studentId) return null;
+  const row = db.prepare(`
+    SELECT council_role
+    FROM council_assignments
+    WHERE student_id = ?
+      AND active = 1
+      AND date(start_date) <= date('now')
+      AND (end_date IS NULL OR date(end_date) >= date('now'))
+    ORDER BY date(start_date) DESC, id DESC
+    LIMIT 1
+  `).get(studentId);
+  return row?.council_role || null;
+}
+
+function getFeeAccessContext(req) {
+  if (req.feeAccessContext) return req.feeAccessContext;
+  const linkedStudentId = getLinkedStudentId(req.user.id);
+  const councilRole = getCurrentCouncilRole(linkedStudentId);
+  const isStaff = req.user.role === 'admin' || req.user.role === 'teacher';
+  const permissions = new Set(isStaff ? [
+    'fees.view',
+    'fees.record_payment',
+    'fees.upload_proof',
+    'fees.approve_payment',
+    'fees.view_followups',
+    'fees.manage_followups',
+    'fees.view_hostel_scope',
+    'fees.view_schoolwide_summary',
+  ] : (COUNCIL_FEE_PERMISSION_MAP[councilRole] || []));
+  req.feeAccessContext = { isStaff, linkedStudentId, councilRole, permissions };
+  return req.feeAccessContext;
+}
+
+function hasFeePermission(req, permission) {
+  return getFeeAccessContext(req).permissions.has(permission);
+}
+
+function requireFeePermission(...permissions) {
+  return (req, res, next) => {
+    const allowed = permissions.some((permission) => hasFeePermission(req, permission));
+    if (!allowed) return res.status(403).json({ error: 'Insufficient fee permissions.' });
+    return next();
+  };
+}
+
+function hostelScopeForRole(role) {
+  if (role === 'boys_hostel_monitor') return 'boys_hostel';
+  if (role === 'girls_hostel_monitor') return 'girls_hostel';
+  return null;
+}
+
+function sqlInPlaceholders(values) {
+  return values.map(() => '?').join(',');
+}
 
 function formatMoney(currency, amount) {
   return `${currency} ${Number(amount || 0).toFixed(2)}`;
@@ -26,10 +94,11 @@ function paymentVerificationCode(payment) {
 }
 
 // GET /api/fees — all payments, filterable by ?month=&year=&student_id=
-router.get('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
+router.get('/', requireAuth, requireFeePermission('fees.view', 'fees.view_hostel_scope'), (req, res) => {
+  const access = getFeeAccessContext(req);
   const { month, year, student_id } = req.query;
   let sql = `
-    SELECT fp.*, s.name AS student_name, u.name AS received_by_name
+    SELECT fp.*, s.name AS student_name, s.gender, s.hostel_status, u.name AS received_by_name
     FROM fee_payments fp
     JOIN students s ON s.id = fp.student_id
     LEFT JOIN users u ON u.id = fp.received_by
@@ -57,15 +126,22 @@ router.get('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
     sql += ' AND fp.student_id = ?';
     params.push(sid);
   }
+  if (!hasFeePermission(req, 'fees.view')) {
+    const hostelScope = hostelScopeForRole(access.councilRole);
+    const gender = hostelScope === 'boys_hostel' ? 'male' : 'female';
+    sql += " AND s.hostel_status = 'boarder' AND s.gender = ?";
+    params.push(gender);
+  }
   sql += ' ORDER BY fp.paid_date DESC';
 
   res.json(db.prepare(sql).all(...params));
 });
 
 // GET /api/fees/:id — payment details
-router.get('/:id(\\d+)', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
+router.get('/:id(\\d+)', requireAuth, requireFeePermission('fees.view', 'fees.view_hostel_scope'), (req, res) => {
+  const access = getFeeAccessContext(req);
   const payment = db.prepare(`
-    SELECT fp.*, s.name AS student_name, u.name AS received_by_name
+    SELECT fp.*, s.name AS student_name, s.gender, s.hostel_status, u.name AS received_by_name
     FROM fee_payments fp
     JOIN students s ON s.id = fp.student_id
     LEFT JOIN users u ON u.id = fp.received_by
@@ -73,6 +149,13 @@ router.get('/:id(\\d+)', requireAuth, requireRole('admin', 'teacher'), (req, res
   `).get(req.params.id);
 
   if (!payment) return res.status(404).json({ error: 'Payment not found' });
+  if (!hasFeePermission(req, 'fees.view')) {
+    const hostelScope = hostelScopeForRole(access.councilRole);
+    const allowedGender = hostelScope === 'boys_hostel' ? 'male' : 'female';
+    if (payment.hostel_status !== 'boarder' || payment.gender !== allowedGender) {
+      return res.status(403).json({ error: 'Payment is outside your hostel scope.' });
+    }
+  }
   res.json({
     ...payment,
     receipt_code: paymentReceiptCode(payment),
@@ -81,7 +164,8 @@ router.get('/:id(\\d+)', requireAuth, requireRole('admin', 'teacher'), (req, res
 });
 
 // GET /api/fees/verify/:code — verify receipt verification code
-router.get('/verify/:code', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
+router.get('/verify/:code', requireAuth, requireFeePermission('fees.view', 'fees.view_hostel_scope'), (req, res) => {
+  const access = getFeeAccessContext(req);
   const rawCode = String(req.params.code || '').trim().toUpperCase();
   const match = /^VER-(\d{6})-(\d{4})(\d{2})$/.exec(rawCode);
   if (!match) return res.status(400).json({ error: 'Invalid verification code format' });
@@ -91,7 +175,7 @@ router.get('/verify/:code', requireAuth, requireRole('admin', 'teacher'), (req, 
   const month = Number(match[3]);
 
   const payment = db.prepare(`
-    SELECT fp.*, s.name AS student_name, u.name AS received_by_name
+    SELECT fp.*, s.name AS student_name, s.gender, s.hostel_status, u.name AS received_by_name
     FROM fee_payments fp
     JOIN students s ON s.id = fp.student_id
     LEFT JOIN users u ON u.id = fp.received_by
@@ -99,6 +183,13 @@ router.get('/verify/:code', requireAuth, requireRole('admin', 'teacher'), (req, 
   `).get(paymentId);
 
   if (!payment) return res.status(404).json({ error: 'No payment found for this verification code' });
+  if (!hasFeePermission(req, 'fees.view')) {
+    const hostelScope = hostelScopeForRole(access.councilRole);
+    const allowedGender = hostelScope === 'boys_hostel' ? 'male' : 'female';
+    if (payment.hostel_status !== 'boarder' || payment.gender !== allowedGender) {
+      return res.status(403).json({ error: 'Payment is outside your hostel scope.' });
+    }
+  }
   if (payment.period_year !== year || payment.period_month !== month) {
     return res.status(404).json({ error: 'Verification code does not match payment period' });
   }
@@ -118,7 +209,17 @@ router.get('/verify/:code', requireAuth, requireRole('admin', 'teacher'), (req, 
 });
 
 // GET /api/fees/student/:id — per-student payment history
-router.get('/student/:id', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
+router.get('/student/:id', requireAuth, requireFeePermission('fees.view', 'fees.view_hostel_scope'), (req, res) => {
+  const access = getFeeAccessContext(req);
+  const student = db.prepare('SELECT id, gender, hostel_status FROM students WHERE id = ?').get(req.params.id);
+  if (!student) return res.status(404).json({ error: 'Student not found' });
+  if (!hasFeePermission(req, 'fees.view')) {
+    const hostelScope = hostelScopeForRole(access.councilRole);
+    const allowedGender = hostelScope === 'boys_hostel' ? 'male' : 'female';
+    if (student.hostel_status !== 'boarder' || student.gender !== allowedGender) {
+      return res.status(403).json({ error: 'Student is outside your hostel scope.' });
+    }
+  }
   const rows = db.prepare(`
     SELECT fp.*, u.name AS received_by_name
     FROM fee_payments fp
@@ -138,7 +239,7 @@ router.get('/student/:id', requireAuth, requireRole('admin', 'teacher'), (req, r
 });
 
 // POST /api/fees — record payment
-router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
+router.post('/', requireAuth, requireFeePermission('fees.record_payment'), (req, res) => {
   const { student_id, amount, paid_date, method, period_month, period_year, notes } = req.body;
   if (student_id == null || amount == null || !paid_date || period_month == null || period_year == null)
     return res.status(400).json({ error: 'student_id, amount, paid_date, period_month, period_year required' });
@@ -192,10 +293,263 @@ router.post('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   res.status(201).json({ id: result.lastInsertRowid });
 });
 
+// GET /api/fees/council/summary — council fee workflow dashboard metrics
+router.get('/council/summary', requireAuth, requireFeePermission('fees.view_schoolwide_summary', 'fees.view_hostel_scope'), (req, res) => {
+  const access = getFeeAccessContext(req);
+  const month = Number.parseInt(req.query.month || String(new Date().getMonth() + 1), 10);
+  const year = Number.parseInt(req.query.year || String(new Date().getFullYear()), 10);
+
+  let studentScopeWhere = '';
+  const scopeParams = [];
+  if (hasFeePermission(req, 'fees.view_hostel_scope') && !hasFeePermission(req, 'fees.view_schoolwide_summary')) {
+    const hostelScope = hostelScopeForRole(access.councilRole);
+    const gender = hostelScope === 'boys_hostel' ? 'male' : 'female';
+    studentScopeWhere = " AND s.hostel_status = 'boarder' AND s.gender = ?";
+    scopeParams.push(gender);
+  }
+
+  const paymentsAwaitingReview = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM fee_payments fp
+    LEFT JOIN fee_payment_reviews fpr ON fpr.payment_id = fp.id
+    WHERE fp.voided = 0
+      AND fp.period_month = ?
+      AND fp.period_year = ?
+      AND fp.received_by IN (
+        SELECT user_id
+        FROM students
+        WHERE id IN (
+          SELECT student_id FROM council_assignments
+          WHERE council_role = 'treasurer'
+            AND active = 1
+            AND date(start_date) <= date('now')
+            AND (end_date IS NULL OR date(end_date) >= date('now'))
+        )
+      )
+      AND fpr.id IS NULL
+  `).get(month, year)?.count || 0;
+
+  const disputedPayments = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM fee_payment_reviews
+    WHERE decision IN ('rejected','needs_clarification')
+  `).get()?.count || 0;
+
+  const unpaidSummary = db.prepare(`
+    SELECT
+      COUNT(*) AS total_students,
+      SUM(CASE WHEN p.id IS NULL THEN 1 ELSE 0 END) AS unpaid_students
+    FROM students s
+    LEFT JOIN fee_payments p
+      ON p.student_id = s.id
+      AND p.period_month = ?
+      AND p.period_year = ?
+      AND p.voided = 0
+    WHERE s.status = 'active'
+    ${studentScopeWhere}
+  `).get(month, year, ...scopeParams);
+
+  const missingProof = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM fee_payments fp
+    WHERE fp.voided = 0
+      AND fp.period_month = ?
+      AND fp.period_year = ?
+      AND (fp.notes IS NULL OR trim(fp.notes) = '')
+  `).get(month, year)?.count || 0;
+
+  const followupOpen = db.prepare(`
+    SELECT status, COUNT(*) AS count
+    FROM fee_followups
+    GROUP BY status
+  `).all();
+
+  res.json({
+    month,
+    year,
+    role: access.councilRole,
+    permissions: Array.from(access.permissions),
+    widgets: {
+      pending_payments: unpaidSummary?.unpaid_students || 0,
+      unpaid_students_overview: unpaidSummary?.unpaid_students || 0,
+      payments_awaiting_review: paymentsAwaitingReview,
+      disputed_payments: disputedPayments,
+      missing_proof: missingProof,
+      followups_by_status: followupOpen,
+    },
+  });
+});
+
+// GET /api/fees/council/followups
+router.get('/council/followups', requireAuth, requireFeePermission('fees.view_followups'), (req, res) => {
+  const access = getFeeAccessContext(req);
+  const statuses = String(req.query.status || '').split(',').map((v) => v.trim()).filter(Boolean);
+  const params = [];
+  let where = ' WHERE 1=1 ';
+
+  if (statuses.length) {
+    where += ` AND ff.status IN (${sqlInPlaceholders(statuses)})`;
+    params.push(...statuses);
+  }
+
+  if (access.councilRole === 'boys_hostel_monitor' || access.councilRole === 'girls_hostel_monitor') {
+    const scope = hostelScopeForRole(access.councilRole);
+    where += ' AND ff.hostel_scope = ?';
+    params.push(scope);
+  }
+
+  const rows = db.prepare(`
+    SELECT ff.*, s.name AS student_name, s.gender, s.level,
+           cu.name AS created_by_user_name,
+           cs.name AS created_by_student_name
+    FROM fee_followups ff
+    JOIN students s ON s.id = ff.student_id
+    LEFT JOIN users cu ON cu.id = ff.created_by_user_id
+    LEFT JOIN students cs ON cs.id = ff.created_by_student_id
+    ${where}
+    ORDER BY ff.created_at DESC
+  `).all(...params);
+
+  res.json(rows);
+});
+
+// POST /api/fees/council/followups
+router.post('/council/followups', requireAuth, requireFeePermission('fees.manage_followups'), (req, res) => {
+  const access = getFeeAccessContext(req);
+  const studentId = Number.parseInt(req.body.student_id, 10);
+  const followupType = String(req.body.followup_type || '').trim();
+  const status = String(req.body.status || 'open').trim();
+  const note = String(req.body.note || '').trim();
+  const validTypes = ['reminder', 'student_contacted', 'guardian_contacted', 'payment_issue', 'escalation'];
+  const validStatuses = ['open', 'done', 'escalated'];
+
+  if (!Number.isInteger(studentId)) return res.status(400).json({ error: 'student_id is required.' });
+  if (!validTypes.includes(followupType)) return res.status(400).json({ error: 'Invalid followup_type.' });
+  if (!validStatuses.includes(status)) return res.status(400).json({ error: 'Invalid status.' });
+  if (!note) return res.status(400).json({ error: 'note is required.' });
+
+  const student = db.prepare('SELECT id, gender, hostel_status FROM students WHERE id = ?').get(studentId);
+  if (!student) return res.status(404).json({ error: 'Student not found.' });
+
+  let hostelScope = req.body.hostel_scope ? String(req.body.hostel_scope).trim() : null;
+  if (access.councilRole === 'boys_hostel_monitor' || access.councilRole === 'girls_hostel_monitor') {
+    hostelScope = hostelScopeForRole(access.councilRole);
+    const expectedGender = hostelScope === 'boys_hostel' ? 'male' : 'female';
+    if (student.hostel_status !== 'boarder' || student.gender !== expectedGender) {
+      return res.status(403).json({ error: 'Student is outside your hostel scope.' });
+    }
+  }
+
+  const result = db.prepare(`
+    INSERT INTO fee_followups
+      (student_id, hostel_scope, created_by_student_id, created_by_user_id, council_role, followup_type, note, status, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `).run(
+    studentId,
+    hostelScope,
+    access.linkedStudentId,
+    req.user.id,
+    access.councilRole || req.user.role,
+    followupType,
+    note,
+    status
+  );
+
+  audit(req.user.id, 'CREATE', 'fee_followups', result.lastInsertRowid, `${access.councilRole || req.user.role} logged ${followupType}`);
+  res.status(201).json({ id: result.lastInsertRowid });
+});
+
+router.patch('/council/followups/:id(\\d+)', requireAuth, requireFeePermission('fees.manage_followups'), (req, res) => {
+  const access = getFeeAccessContext(req);
+  const row = db.prepare(`
+    SELECT ff.*, s.gender, s.hostel_status
+    FROM fee_followups ff
+    JOIN students s ON s.id = ff.student_id
+    WHERE ff.id = ?
+  `).get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Follow-up not found.' });
+
+  if (access.councilRole === 'boys_hostel_monitor' || access.councilRole === 'girls_hostel_monitor') {
+    const scope = hostelScopeForRole(access.councilRole);
+    const expectedGender = scope === 'boys_hostel' ? 'male' : 'female';
+    if (row.hostel_scope !== scope || row.gender !== expectedGender || row.hostel_status !== 'boarder') {
+      return res.status(403).json({ error: 'Follow-up is outside your hostel scope.' });
+    }
+  }
+
+  const updates = [];
+  const params = [];
+  if (req.body.note !== undefined) {
+    const note = String(req.body.note || '').trim();
+    if (!note) return res.status(400).json({ error: 'note cannot be empty.' });
+    updates.push('note = ?');
+    params.push(note);
+  }
+  if (req.body.status !== undefined) {
+    const status = String(req.body.status || '').trim();
+    if (!['open', 'done', 'escalated'].includes(status)) return res.status(400).json({ error: 'Invalid status.' });
+    updates.push('status = ?');
+    params.push(status);
+  }
+  if (!updates.length) return res.status(400).json({ error: 'No valid fields to update.' });
+  updates.push('updated_at = datetime(\'now\')');
+
+  db.prepare(`UPDATE fee_followups SET ${updates.join(', ')} WHERE id = ?`).run(...params, req.params.id);
+  audit(req.user.id, 'UPDATE', 'fee_followups', req.params.id, `${access.councilRole || req.user.role} updated follow-up`);
+  res.json({ ok: true });
+});
+
+router.post('/council/payments/:id(\\d+)/review', requireAuth, requireFeePermission('fees.approve_payment'), (req, res) => {
+  const access = getFeeAccessContext(req);
+  const payment = db.prepare('SELECT * FROM fee_payments WHERE id = ? AND voided = 0').get(req.params.id);
+  if (!payment) return res.status(404).json({ error: 'Payment not found.' });
+
+  const decision = String(req.body.decision || '').trim();
+  if (!['approved', 'rejected', 'needs_clarification'].includes(decision)) {
+    return res.status(400).json({ error: 'Invalid decision.' });
+  }
+  const notes = req.body.notes ? String(req.body.notes).trim() : null;
+
+  const result = db.prepare(`
+    INSERT INTO fee_payment_reviews
+      (payment_id, reviewed_by_student_id, reviewed_by_user_id, review_role, decision, notes, reviewed_at)
+    VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+  `).run(payment.id, access.linkedStudentId, req.user.id, access.councilRole || req.user.role, decision, notes);
+
+  audit(req.user.id, 'REVIEW', 'fee_payments', payment.id, `${access.councilRole || req.user.role} marked payment ${decision}`);
+  res.status(201).json({ id: result.lastInsertRowid });
+});
+
+router.get('/council/my-scope', requireAuth, requireFeePermission('fees.view_followups', 'fees.view_schoolwide_summary', 'fees.view_hostel_scope'), (req, res) => {
+  const access = getFeeAccessContext(req);
+  const hostelScope = hostelScopeForRole(access.councilRole);
+  const students = hostelScope ? db.prepare(`
+    SELECT id, name, gender, level, dorm_house, room
+    FROM students
+    WHERE hostel_status = 'boarder' AND gender = ?
+    ORDER BY name
+  `).all(hostelScope === 'boys_hostel' ? 'male' : 'female') : db.prepare(`
+    SELECT id, name, gender, level, dorm_house, room
+    FROM students
+    WHERE status = 'active'
+    ORDER BY name
+    LIMIT 300
+  `).all();
+
+  res.json({
+    linked_student_id: access.linkedStudentId,
+    council_role: access.councilRole,
+    permissions: Array.from(access.permissions),
+    hostel_scope: hostelScope,
+    scope_students: students,
+  });
+});
+
 // GET /api/fees/:id/receipt/pdf — printable payment receipt
-router.get('/:id(\\d+)/receipt/pdf', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
+router.get('/:id(\\d+)/receipt/pdf', requireAuth, requireFeePermission('fees.view', 'fees.view_hostel_scope'), (req, res) => {
+  const access = getFeeAccessContext(req);
   const payment = db.prepare(`
-    SELECT fp.*, s.name AS student_name, u.name AS received_by_name
+    SELECT fp.*, s.name AS student_name, s.gender, s.hostel_status, u.name AS received_by_name
     FROM fee_payments fp
     JOIN students s ON s.id = fp.student_id
     LEFT JOIN users u ON u.id = fp.received_by
@@ -203,6 +557,13 @@ router.get('/:id(\\d+)/receipt/pdf', requireAuth, requireRole('admin', 'teacher'
   `).get(req.params.id);
 
   if (!payment) return res.status(404).json({ error: 'Payment not found' });
+  if (!hasFeePermission(req, 'fees.view')) {
+    const hostelScope = hostelScopeForRole(access.councilRole);
+    const allowedGender = hostelScope === 'boys_hostel' ? 'male' : 'female';
+    if (payment.hostel_status !== 'boarder' || payment.gender !== allowedGender) {
+      return res.status(403).json({ error: 'Payment is outside your hostel scope.' });
+    }
+  }
 
   const settings = getSettings();
   const currency = settings.currency || 'RM';

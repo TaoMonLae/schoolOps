@@ -167,6 +167,39 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_fee_payments_unique_active_period
 ON fee_payments (student_id, period_month, period_year)
 WHERE voided = 0;
 
+CREATE TABLE IF NOT EXISTS fee_payment_reviews (
+  id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+  payment_id             INTEGER NOT NULL REFERENCES fee_payments(id) ON DELETE CASCADE,
+  reviewed_by_student_id INTEGER REFERENCES students(id),
+  reviewed_by_user_id    INTEGER REFERENCES users(id),
+  review_role            TEXT    NOT NULL,
+  decision               TEXT    NOT NULL CHECK(decision IN ('approved','rejected','needs_clarification')),
+  notes                  TEXT,
+  reviewed_at            TEXT    NOT NULL DEFAULT (datetime('now')),
+  created_at             TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_fee_payment_reviews_payment ON fee_payment_reviews (payment_id, reviewed_at DESC);
+
+CREATE TABLE IF NOT EXISTS fee_followups (
+  id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id            INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  hostel_scope          TEXT,
+  created_by_student_id INTEGER REFERENCES students(id),
+  created_by_user_id    INTEGER REFERENCES users(id),
+  council_role          TEXT    NOT NULL,
+  followup_type         TEXT    NOT NULL CHECK(followup_type IN (
+    'reminder','student_contacted','guardian_contacted','payment_issue','escalation'
+  )),
+  note                  TEXT    NOT NULL,
+  status                TEXT    NOT NULL DEFAULT 'open' CHECK(status IN ('open','done','escalated')),
+  created_at            TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at            TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_fee_followups_student ON fee_followups (student_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_fee_followups_scope ON fee_followups (hostel_scope, status, created_at DESC);
+
 -- ─────────────────────────────────────────
 -- Duty Logs (student-submitted)
 -- ─────────────────────────────────────────

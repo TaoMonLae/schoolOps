@@ -10,6 +10,9 @@ window.StudentCouncil = function StudentCouncil({ user }) {
   const [rosters, setRosters] = useState([]);
   const [resourceLogs, setResourceLogs] = useState([]);
   const [funds, setFunds] = useState({ ledger: [], summary: {} });
+  const [feeSummary, setFeeSummary] = useState(null);
+  const [feeScope, setFeeScope] = useState(null);
+  const [feeFollowups, setFeeFollowups] = useState([]);
   const [students, setStudents] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -20,6 +23,7 @@ window.StudentCouncil = function StudentCouncil({ user }) {
   const [rosterForm, setRosterForm] = useState({ roster_type: 'cleaning', week_start: window.todayLocalISO(), week_end: window.todayLocalISO(), duty_group: '', status: 'planned', notes: '', assignments_text: '' });
   const [resourceForm, setResourceForm] = useState({ item_name: '', log_type: 'inventory_check', student_id: '', quantity: '', condition_status: '', notes: '', log_date: window.todayLocalISO() });
   const [fundForm, setFundForm] = useState({ entry_type: 'collection', amount: '', description: '', entry_date: window.todayLocalISO(), supporting_ref: '' });
+  const [followupForm, setFollowupForm] = useState({ student_id: '', followup_type: 'reminder', status: 'open', note: '' });
 
   const isManager = !!context?.isManager;
   const isCouncilMember = !!context?.isCouncilMember;
@@ -64,6 +68,19 @@ window.StudentCouncil = function StudentCouncil({ user }) {
         ];
         if (ctx.isManager || ctx.councilRole === 'treasurer') {
           tasks.push(api('/api/student-council/funds').then(setFunds));
+        }
+        const feeRoles = ['treasurer', 'president', 'secretary', 'boys_hostel_monitor', 'girls_hostel_monitor'];
+        if (ctx.isManager || feeRoles.includes(ctx.councilRole)) {
+          tasks.push(
+            api('/api/fees/council/summary').then(setFeeSummary),
+            api('/api/fees/council/my-scope').then((scope) => {
+              setFeeScope(scope);
+              if (!followupForm.student_id && (scope.scope_students || []).length) {
+                setFollowupForm((prev) => ({ ...prev, student_id: String(scope.scope_students[0].id) }));
+              }
+            }),
+            api('/api/fees/council/followups').then(setFeeFollowups),
+          );
         }
         await Promise.all(tasks);
       }
@@ -164,6 +181,25 @@ window.StudentCouncil = function StudentCouncil({ user }) {
     } catch (err) { showToast(err.message, 'error'); }
   }
 
+  async function submitFollowup(e) {
+    e.preventDefault();
+    try {
+      await api('/api/fees/council/followups', { method: 'POST', body: followupForm });
+      showToast('Fee follow-up logged');
+      setFollowupForm((prev) => ({ ...prev, note: '' }));
+      setFeeFollowups(await api('/api/fees/council/followups'));
+      setFeeSummary(await api('/api/fees/council/summary'));
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+
+  async function updateFollowupStatus(id, status) {
+    try {
+      await api(`/api/fees/council/followups/${id}`, { method: 'PATCH', body: { status } });
+      setFeeFollowups(await api('/api/fees/council/followups'));
+      setFeeSummary(await api('/api/fees/council/summary'));
+    } catch (err) { showToast(err.message, 'error'); }
+  }
+
   if (loading) return <window.StatePanel type="loading" message="Loading Student Council module..." />;
 
   return (
@@ -231,6 +267,82 @@ window.StudentCouncil = function StudentCouncil({ user }) {
             {['cleaning_duty_leader', 'cooking_duty_leader'].includes(context?.councilRole) && <><li>Maintain weekly duty rosters and missed-duty follow-up.</li></>}
             {!context?.councilRole && <li>You are viewing read-only Student Council overview.</li>}
           </ul>
+          {feeSummary && (
+            <>
+              <div className="section-title" style={{ marginTop: 16 }}>Council Fee Management</div>
+              <div className="kpi-grid" style={{ marginTop:10 }}>
+                {(context?.councilRole === 'treasurer' || isManager) && (
+                  <>
+                    <div className="kpi-card"><div className="kpi-label">Pending payments</div><div className="kpi-value">{feeSummary.widgets?.pending_payments || 0}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Recently recorded payments</div><div className="kpi-value">{feeSummary.widgets?.pending_payments === 0 ? 'Up to date' : 'Review list'}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Missing proof</div><div className="kpi-value">{feeSummary.widgets?.missing_proof || 0}</div></div>
+                  </>
+                )}
+                {(context?.councilRole === 'president' || isManager) && (
+                  <>
+                    <div className="kpi-card"><div className="kpi-label">Payments awaiting review</div><div className="kpi-value">{feeSummary.widgets?.payments_awaiting_review || 0}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Disputed payments</div><div className="kpi-value">{feeSummary.widgets?.disputed_payments || 0}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Unpaid students overview</div><div className="kpi-value">{feeSummary.widgets?.unpaid_students_overview || 0}</div></div>
+                  </>
+                )}
+                {context?.councilRole === 'secretary' && (
+                  <>
+                    <div className="kpi-card"><div className="kpi-label">Reminder queue</div><div className="kpi-value">{feeSummary.widgets?.followups_by_status?.find((s) => s.status === 'open')?.count || 0}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Communication log</div><div className="kpi-value">{feeFollowups.length}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Follow-up tracker</div><div className="kpi-value">{feeSummary.widgets?.followups_by_status?.find((s) => s.status === 'done')?.count || 0}</div></div>
+                  </>
+                )}
+                {['boys_hostel_monitor', 'girls_hostel_monitor'].includes(context?.councilRole) && (
+                  <>
+                    <div className="kpi-card"><div className="kpi-label">Unpaid in hostel scope</div><div className="kpi-value">{feeSummary.widgets?.unpaid_students_overview || 0}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Follow-up status</div><div className="kpi-value">{feeSummary.widgets?.followups_by_status?.find((s) => s.status === 'open')?.count || 0}</div></div>
+                    <div className="kpi-card"><div className="kpi-label">Escalation ready</div><div className="kpi-value">Use follow-up form</div></div>
+                  </>
+                )}
+              </div>
+              {feeScope && feeScope.permissions?.includes('fees.manage_followups') && (
+                <div className="grid cols-2" style={{ marginTop: 12 }}>
+                  <form className="stack-sm" onSubmit={submitFollowup}>
+                    <div className="muted">Log fee follow-up</div>
+                    <select value={followupForm.student_id} onChange={(e) => setFollowupForm({ ...followupForm, student_id: e.target.value })} required>
+                      <option value="">Select student</option>
+                      {(feeScope.scope_students || []).map((s) => <option key={s.id} value={s.id}>{s.name} · {s.level}</option>)}
+                    </select>
+                    <div className="grid cols-2">
+                      <select value={followupForm.followup_type} onChange={(e) => setFollowupForm({ ...followupForm, followup_type: e.target.value })}>
+                        {['reminder','student_contacted','guardian_contacted','payment_issue','escalation'].map((t) => <option key={t} value={t}>{t.replaceAll('_', ' ')}</option>)}
+                      </select>
+                      <select value={followupForm.status} onChange={(e) => setFollowupForm({ ...followupForm, status: e.target.value })}>
+                        {['open','done','escalated'].map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <textarea rows="2" value={followupForm.note} onChange={(e) => setFollowupForm({ ...followupForm, note: e.target.value })} placeholder="Reminder, contact attempt, issue details..." required />
+                    <button className="btn btn-secondary" type="submit">Save follow-up / Escalation</button>
+                  </form>
+                  <div>
+                    <div className="muted">Communication log</div>
+                    <table className="table" style={{ marginTop: 8 }}>
+                      <thead><tr><th>Student</th><th>Type</th><th>Status</th><th>Update</th></tr></thead>
+                      <tbody>
+                        {feeFollowups.slice(0, 8).map((f) => (
+                          <tr key={f.id}>
+                            <td>{f.student_name}</td>
+                            <td>{f.followup_type.replaceAll('_', ' ')}</td>
+                            <td><window.StatusBadge status={f.status} /></td>
+                            <td>
+                              <select value={f.status} onChange={(e) => updateFollowupStatus(f.id, e.target.value)}>
+                                {['open','done','escalated'].map((s) => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
 
