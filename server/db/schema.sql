@@ -307,6 +307,146 @@ CREATE INDEX IF NOT EXISTS idx_notifications_entity
 ON notifications (entity_type, entity_id);
 
 -- ─────────────────────────────────────────
+-- Student Council
+-- ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS council_assignments (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_id   INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  council_role TEXT    NOT NULL CHECK(council_role IN (
+    'president','vice_president','secretary','treasurer',
+    'boys_hostel_monitor','girls_hostel_monitor','resource_monitor',
+    'cooking_duty_leader','cleaning_duty_leader'
+  )),
+  start_date   TEXT    NOT NULL,
+  end_date     TEXT,
+  active       INTEGER NOT NULL DEFAULT 1,
+  assigned_by  INTEGER REFERENCES users(id),
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_council_assignments_student ON council_assignments (student_id, active);
+CREATE INDEX IF NOT EXISTS idx_council_assignments_role ON council_assignments (council_role, active);
+
+CREATE TABLE IF NOT EXISTS council_issues (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  type              TEXT    NOT NULL CHECK(type IN (
+    'hostel_concern','curfew_issue','quiet_hours_issue',
+    'kitchen_dining_issue','cleaning_duty_issue','maintenance_issue',
+    'resource_issue','student_concern','council_action_item'
+  )),
+  title             TEXT    NOT NULL,
+  description       TEXT,
+  reported_by       INTEGER REFERENCES users(id),
+  assigned_role     TEXT,
+  assigned_student_id INTEGER REFERENCES students(id),
+  target_student_id INTEGER REFERENCES students(id),
+  status            TEXT    NOT NULL DEFAULT 'open'
+                           CHECK(status IN ('open','in_progress','resolved','escalated')),
+  priority          TEXT    NOT NULL DEFAULT 'medium'
+                           CHECK(priority IN ('low','medium','high','urgent')),
+  linked_rule_category TEXT,
+  due_date          TEXT,
+  resolution_notes  TEXT,
+  created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at        TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_council_issues_status ON council_issues (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_council_issues_role ON council_issues (assigned_role, status);
+CREATE INDEX IF NOT EXISTS idx_council_issues_target_student ON council_issues (target_student_id);
+
+CREATE TABLE IF NOT EXISTS council_meetings (
+  id                          INTEGER PRIMARY KEY AUTOINCREMENT,
+  meeting_number              TEXT    NOT NULL,
+  meeting_date                TEXT    NOT NULL,
+  start_time                  TEXT,
+  end_time                    TEXT,
+  location                    TEXT,
+  chairperson_role            TEXT,
+  chairperson_student_id      INTEGER REFERENCES students(id),
+  minutes_taken_by_student_id INTEGER REFERENCES students(id),
+  attendance                  TEXT,
+  agenda_items                TEXT,
+  discussion_notes            TEXT,
+  action_items                TEXT,
+  next_meeting_date           TEXT,
+  created_by                  INTEGER REFERENCES users(id),
+  created_at                  TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_council_meetings_date ON council_meetings (meeting_date DESC);
+
+CREATE TABLE IF NOT EXISTS council_action_items (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  meeting_id        INTEGER REFERENCES council_meetings(id) ON DELETE CASCADE,
+  title             TEXT    NOT NULL,
+  description       TEXT,
+  assigned_role     TEXT,
+  assigned_student_id INTEGER REFERENCES students(id),
+  status            TEXT    NOT NULL DEFAULT 'open'
+                           CHECK(status IN ('open','in_progress','completed','cancelled')),
+  due_date          TEXT,
+  completed_at      TEXT,
+  created_by        INTEGER REFERENCES users(id),
+  created_at        TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS council_meeting_attendance (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  meeting_id    INTEGER NOT NULL REFERENCES council_meetings(id) ON DELETE CASCADE,
+  student_id    INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  attendance_status TEXT NOT NULL DEFAULT 'present'
+                    CHECK(attendance_status IN ('present','absent','excused')),
+  notes         TEXT,
+  UNIQUE(meeting_id, student_id)
+);
+
+CREATE TABLE IF NOT EXISTS council_duty_rosters (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  roster_type  TEXT    NOT NULL CHECK(roster_type IN ('cooking','cleaning')),
+  week_start   TEXT    NOT NULL,
+  week_end     TEXT    NOT NULL,
+  duty_group   TEXT,
+  assignments  TEXT,
+  status       TEXT    NOT NULL DEFAULT 'planned'
+                       CHECK(status IN ('planned','in_progress','completed','missed')),
+  notes        TEXT,
+  created_by   INTEGER REFERENCES users(id),
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_council_duty_rosters_week ON council_duty_rosters (week_start DESC, roster_type);
+
+CREATE TABLE IF NOT EXISTS council_resource_logs (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_name        TEXT    NOT NULL,
+  log_type         TEXT    NOT NULL,
+  student_id       INTEGER REFERENCES students(id),
+  quantity         REAL,
+  condition_status TEXT,
+  notes            TEXT,
+  log_date         TEXT    NOT NULL,
+  created_by       INTEGER REFERENCES users(id),
+  created_at       TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_council_resource_logs_date ON council_resource_logs (log_date DESC);
+
+CREATE TABLE IF NOT EXISTS council_funds (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  entry_type     TEXT    NOT NULL CHECK(entry_type IN ('collection','expense','adjustment')),
+  amount         REAL    NOT NULL CHECK(amount > 0),
+  description    TEXT    NOT NULL,
+  entry_date     TEXT    NOT NULL,
+  supporting_ref TEXT,
+  created_by     INTEGER REFERENCES users(id),
+  created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_council_funds_date ON council_funds (entry_date DESC);
+
+-- ─────────────────────────────────────────
 -- Audit Log
 -- ─────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS audit_log (
