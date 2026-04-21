@@ -272,8 +272,16 @@ function getTrendData(months = 12) {
 
 function parseMonthYear(req) {
   const now = new Date();
-  const parsedMonth = Number.parseInt(req.query.month, 10);
-  const parsedYear = Number.parseInt(req.query.year, 10);
+  const monthRaw = req.query.month;
+  const yearRaw = req.query.year;
+  const parsedMonth = Number.parseInt(monthRaw, 10);
+  const parsedYear = Number.parseInt(yearRaw, 10);
+  if (monthRaw != null && (Number.isNaN(parsedMonth) || parsedMonth < 1 || parsedMonth > 12)) {
+    return { error: 'month must be an integer between 1 and 12' };
+  }
+  if (yearRaw != null && (Number.isNaN(parsedYear) || parsedYear < 2000 || parsedYear > 2100)) {
+    return { error: 'year must be an integer between 2000 and 2100' };
+  }
   return {
     month: Number.isNaN(parsedMonth) ? now.getMonth() + 1 : parsedMonth,
     year: Number.isNaN(parsedYear) ? now.getFullYear() : parsedYear,
@@ -282,7 +290,11 @@ function parseMonthYear(req) {
 
 function parseYear(req) {
   const now = new Date();
-  const parsedYear = Number.parseInt(req.query.year, 10);
+  const yearRaw = req.query.year;
+  const parsedYear = Number.parseInt(yearRaw, 10);
+  if (yearRaw != null && (Number.isNaN(parsedYear) || parsedYear < 2000 || parsedYear > 2100)) {
+    return { error: 'year must be an integer between 2000 and 2100' };
+  }
   return Number.isNaN(parsedYear) ? now.getFullYear() : parsedYear;
 }
 
@@ -320,12 +332,16 @@ function getStudentContactExportRows(search = '') {
 
 // GET /api/reports/monthly?month=&year=
 router.get('/monthly', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const { month, year } = parseMonthYear(req);
+  const parsed = parseMonthYear(req);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const { month, year } = parsed;
   res.json(getMonthlyData(month, year));
 });
 
 router.get('/finance-controls', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const { month, year } = parseMonthYear(req);
+  const parsed = parseMonthYear(req);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const { month, year } = parsed;
   res.json({
     month,
     year,
@@ -336,7 +352,9 @@ router.get('/finance-controls', requireAuth, requireRole('admin', 'teacher'), (r
 
 // GET /api/reports/yearly?year=
 router.get('/yearly', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const year = parseYear(req);
+  const parsedYear = parseYear(req);
+  if (parsedYear.error) return res.status(400).json({ error: parsedYear.error });
+  const year = parsedYear;
   res.json(getYearlyData(year));
 });
 
@@ -368,7 +386,9 @@ router.get('/stock/current', requireAuth, requireRole('admin', 'teacher'), (req,
 
 // GET /api/reports/stock/monthly-summary?month=&year=
 router.get('/stock/monthly-summary', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const { month, year } = parseMonthYear(req);
+  const parsed = parseMonthYear(req);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const { month, year } = parsed;
   const mm = String(month).padStart(2, '0');
   const yy = String(year);
 
@@ -405,7 +425,9 @@ router.get('/stock/monthly-summary', requireAuth, requireRole('admin', 'teacher'
 
 // GET /api/reports/export/unpaid-excel?month=&year=&status=&search=
 router.get('/export/unpaid-excel', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const { month, year } = parseMonthYear(req);
+  const parsed = parseMonthYear(req);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const { month, year } = parsed;
 
   const q = (req.query.search || '').toString().trim().toLowerCase();
 
@@ -493,7 +515,9 @@ router.get('/export/student-contacts-excel', requireAuth, requireRole('admin', '
 
 // GET /api/reports/export/excel?month=&year=
 router.get('/export/excel', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const { month, year } = parseMonthYear(req);
+  const parsed = parseMonthYear(req);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const { month, year } = parsed;
   const d = getMonthlyData(month, year);
 
   const wb = XLSX.utils.book_new();
@@ -584,7 +608,9 @@ router.get('/export/excel', requireAuth, requireRole('admin', 'teacher'), (req, 
 
 // GET /api/reports/export/yearly-excel?year=
 router.get('/export/yearly-excel', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const year = parseYear(req);
+  const parsedYear = parseYear(req);
+  if (parsedYear.error) return res.status(400).json({ error: parsedYear.error });
+  const year = parsedYear;
   const d = getYearlyData(year);
 
   const wb = XLSX.utils.book_new();
@@ -633,7 +659,9 @@ router.get('/export/yearly-excel', requireAuth, requireRole('admin', 'teacher'),
 
 // GET /api/reports/export/pdf?month=&year=
 router.get('/export/pdf', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const { month, year } = parseMonthYear(req);
+  const parsed = parseMonthYear(req);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const { month, year } = parsed;
   const d = getMonthlyData(month, year);
 
   const branding = reportBranding();
@@ -873,7 +901,9 @@ router.get('/export/stock-current-excel', requireAuth, requireRole('admin', 'tea
 
 // GET /api/reports/export/stock-monthly-excel?month=&year=
 router.get('/export/stock-monthly-excel', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const { month, year } = parseMonthYear(req);
+  const parsed = parseMonthYear(req);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const { month, year } = parsed;
   const mm = String(month).padStart(2, '0');
   const yy = String(year);
   const label = `${MONTHS[month - 1]} ${year}`;
@@ -932,7 +962,9 @@ router.get('/export/stock-monthly-excel', requireAuth, requireRole('admin', 'tea
 
 // GET /api/reports/export/yearly-pdf?year=
 router.get('/export/yearly-pdf', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const year = parseYear(req);
+  const parsedYear = parseYear(req);
+  if (parsedYear.error) return res.status(400).json({ error: parsedYear.error });
+  const year = parsedYear;
   const d = getYearlyData(year);
   const branding = reportBranding();
   const currency = branding.currency;
@@ -1181,7 +1213,9 @@ router.get('/export/stock-current-pdf', requireAuth, requireRole('admin', 'teach
 
 // GET /api/reports/export/stock-monthly-pdf?month=&year=
 router.get('/export/stock-monthly-pdf', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
-  const { month, year } = parseMonthYear(req);
+  const parsed = parseMonthYear(req);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const { month, year } = parsed;
   const mm = String(month).padStart(2, '0');
   const yy = String(year);
   const label = `${MONTHS[month - 1]} ${year}`;
