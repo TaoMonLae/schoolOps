@@ -196,6 +196,9 @@ const PAGE_META = {
     ctaType: 'page',
     targetPage: 'student_discipline',
   },
+  student_council: {
+    subtitle: 'Coordinate student affairs, hostel operations, meetings, and council action items.',
+  },
   change_password: {
     subtitle: 'Update your password before continuing to other pages.',
   },
@@ -445,6 +448,8 @@ const NAV_ADMIN = [
   { id: 'reports',     label: 'Monthly Report',     icon: 'reports' },
   { section: 'Discipline' },
   { id: 'discipline',  label: 'Discipline',          icon: 'discipline' },
+  { section: 'Student Council' },
+  { id: 'student_council',  label: 'Student Council',  icon: 'users' },
   { section: 'Access' },
   { id: 'users',       label: 'Users',              icon: 'users' },
   { id: 'settings',    label: 'Settings',           icon: 'settings' },
@@ -467,6 +472,8 @@ const NAV_TEACHER = [
   { id: 'ledger',      label: 'Ledger & Accounts',  icon: 'ledger' },
   { section: 'Reports' },
   { id: 'reports',     label: 'Monthly Report',     icon: 'reports' },
+  { section: 'Student Council' },
+  { id: 'student_council',  label: 'Student Council', icon: 'users' },
   { section: 'Account' },
   { id: 'change_password', label: 'Change Password',icon: 'lock' },
 ];
@@ -481,6 +488,7 @@ const NAV_STUDENT = [
   { id: 'student_receipts',   label: 'My Receipts',    icon: 'book' },
   { id: 'student_discipline', label: 'My Discipline',  icon: 'discipline' },
   { id: 'student_rules',      label: 'School Rules',   icon: 'book' },
+  { id: 'student_council',    label: 'Student Council',icon: 'users' },
   { section: 'Account' },
   { id: 'change_password',    label: 'Change Password',icon: 'lock' },
 ];
@@ -561,6 +569,7 @@ const PAGE_TITLES = {
   discipline:         'Discipline',
   student_discipline: 'My Discipline',
   student_rules:      'School Rules',
+  student_council:    'Student Council',
 };
 
 function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuToggle, onThemeToggle, themeMode }) {
@@ -684,6 +693,7 @@ function AppShell() {
       case 'discipline':   return role === 'admin' || role === 'teacher' ? <window.Discipline user={user} /> : <window.StatePanel type="blocked" message="Not allowed" />;
       case 'student_discipline': return role === 'student' ? <window.StudentDiscipline user={user} setPage={setPage} /> : <window.StatePanel type="blocked" message="Not allowed" />;
       case 'student_rules': return role === 'student' ? <window.StudentRules user={user} /> : <window.StatePanel type="blocked" message="Not allowed" />;
+      case 'student_council': return <window.StudentCouncil user={user} />;
       case 'users':        return role === 'admin' ? <window.UserManagement /> : <window.StatePanel type="blocked" message="Not allowed" />;
       case 'settings':
         return role === 'admin' ? <window.Settings mode="settings" onSaved={refreshSettings} /> : <window.StatePanel type="blocked" message="Not allowed" />;

@@ -27,6 +27,7 @@ const cashbookRoutes   = require('./routes/cashbook');
 const fundsRoutes      = require('./routes/funds');
 const closingRoutes    = require('./routes/closing');
 const disciplineRoutes = require('./routes/discipline');
+const studentCouncilRoutes = require('./routes/studentCouncil');
 const { initializeDefaultSettings } = require('./services/settings');
 const { DB_PATH, UPLOAD_DIR, BACKUP_DIR, ensureRuntimeDirectories } = require('./config/paths');
 
@@ -103,6 +104,7 @@ app.use('/api/cashbook',  cashbookRoutes);
 app.use('/api/funds',     fundsRoutes);
 app.use('/api/closing',     closingRoutes);
 app.use('/api/discipline',  disciplineRoutes);
+app.use('/api/student-council',  studentCouncilRoutes);
 
 // ─── SPA fallback — serve index.html for any non-API route ───────────────────
 app.get('*', (req, res) => {
