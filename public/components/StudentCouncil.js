@@ -18,6 +18,9 @@ window.StudentCouncil = function StudentCouncil({ user }) {
   const [loading, setLoading] = useState(true);
 
   const [assignmentForm, setAssignmentForm] = useState({ student_id: '', council_role: 'president', start_date: window.todayLocalISO(), end_date: '', active: true });
+  const [editingAssignmentId, setEditingAssignmentId] = useState(null);
+  const [assignmentMode, setAssignmentMode] = useState('create');
+  const [showInactiveAssignments, setShowInactiveAssignments] = useState(false);
   const [issueForm, setIssueForm] = useState({ type: 'hostel_concern', title: '', description: '', assigned_role: '', due_date: '', priority: 'medium', linked_rule_category: '' });
   const [meetingForm, setMeetingForm] = useState({ meeting_number: '', meeting_date: window.todayLocalISO(), location: '', chairperson_role: '', discussion_notes: '', agenda_text: '', action_text: '', next_meeting_date: '' });
   const [rosterForm, setRosterForm] = useState({ roster_type: 'cleaning', week_start: window.todayLocalISO(), week_end: window.todayLocalISO(), duty_group: '', status: 'planned', notes: '', assignments_text: '' });
@@ -59,8 +62,9 @@ window.StudentCouncil = function StudentCouncil({ user }) {
       }
 
       if (ctx.isManager || ctx.isCouncilMember) {
+        const assignmentsUrl = `/api/student-council/assignments${showInactiveAssignments ? '?active=0' : ''}`;
         const tasks = [
-          api('/api/student-council/assignments').then(setAssignments),
+          api(assignmentsUrl).then(setAssignments),
           api('/api/student-council/issues').then(setIssues),
           api('/api/student-council/meetings').then(setMeetings),
           api('/api/student-council/duty-rosters').then(setRosters),
@@ -91,16 +95,51 @@ window.StudentCouncil = function StudentCouncil({ user }) {
     }
   }
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [showInactiveAssignments]);
 
   async function submitAssignment(e) {
     e.preventDefault();
     try {
-      await api('/api/student-council/assignments', { method: 'POST', body: assignmentForm });
-      showToast('Council assignment saved');
-      setAssignmentForm({ ...assignmentForm, student_id: '' });
+      if (assignmentMode === 'edit' && editingAssignmentId) {
+        await api(`/api/student-council/assignments/${editingAssignmentId}`, { method: 'PATCH', body: assignmentForm });
+        showToast('Council assignment updated');
+      } else {
+        await api('/api/student-council/assignments', { method: 'POST', body: assignmentForm });
+        showToast('Council assignment saved');
+      }
+      resetAssignmentForm();
       await loadData();
     } catch (err) { showToast(err.message, 'error'); }
+  }
+
+  function startEditAssignment(assignment) {
+    setAssignmentMode('edit');
+    setEditingAssignmentId(assignment.id);
+    setAssignmentForm({
+      student_id: String(assignment.student_id || ''),
+      council_role: assignment.council_role || 'president',
+      start_date: assignment.start_date || window.todayLocalISO(),
+      end_date: assignment.end_date || '',
+      active: !!assignment.active,
+    });
+  }
+
+  function resetAssignmentForm() {
+    setAssignmentMode('create');
+    setEditingAssignmentId(null);
+    setAssignmentForm({ student_id: '', council_role: 'president', start_date: window.todayLocalISO(), end_date: '', active: true });
+  }
+
+  async function deactivateAssignment(assignment) {
+    const confirmed = window.confirm(`End assignment for ${assignment.student_name} as ${assignment.council_role.replaceAll('_', ' ')}?`);
+    if (!confirmed) return;
+    try {
+      await api(`/api/student-council/assignments/${assignment.id}/deactivate`, { method: 'POST' });
+      showToast('Assignment ended');
+      await loadData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   }
 
   async function submitIssue(e) {
@@ -349,19 +388,39 @@ window.StudentCouncil = function StudentCouncil({ user }) {
       {activeTab === 'members' && canManage && (
         <div className="grid cols-2">
           <div className="section-card">
-            <div className="section-title">Council Members</div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+              <div className="section-title">Council Members</div>
+              <label className="muted" style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                <input type="checkbox" checked={showInactiveAssignments} onChange={(e) => setShowInactiveAssignments(e.target.checked)} />
+                Show inactive/history
+              </label>
+            </div>
             <table className="table" style={{ marginTop:10 }}>
-              <thead><tr><th>Name</th><th>Role</th><th>Start</th><th>Status</th></tr></thead>
+              <thead><tr><th>Name</th><th>Role</th><th>Start</th><th>End</th><th>Status</th>{isManager && <th>Actions</th>}</tr></thead>
               <tbody>
                 {assignments.map((a) => (
-                  <tr key={a.id}><td>{a.student_name}</td><td>{a.council_role.replaceAll('_', ' ')}</td><td>{a.start_date}</td><td><window.StatusBadge status={a.active ? 'active' : 'inactive'} /></td></tr>
+                  <tr key={a.id}>
+                    <td>{a.student_name}</td>
+                    <td>{a.council_role.replaceAll('_', ' ')}</td>
+                    <td>{a.start_date}</td>
+                    <td>{a.end_date || '-'}</td>
+                    <td><window.StatusBadge status={a.active ? 'active' : 'inactive'} /></td>
+                    {isManager && (
+                      <td style={{ whiteSpace:'nowrap' }}>
+                        <button className="btn btn-sm btn-secondary" onClick={() => startEditAssignment(a)} style={{ marginRight:6 }}>Edit</button>
+                        {a.active ? (
+                          <button className="btn btn-sm btn-secondary" onClick={() => deactivateAssignment(a)}>End Assignment</button>
+                        ) : <span className="muted">Ended</span>}
+                      </td>
+                    )}
+                  </tr>
                 ))}
               </tbody>
             </table>
           </div>
           {isManager && (
             <div className="section-card">
-              <div className="section-title">Assign Council Role</div>
+              <div className="section-title">{assignmentMode === 'edit' ? 'Edit Council Assignment' : 'Assign Council Role'}</div>
               <form className="stack-sm" onSubmit={submitAssignment} style={{ marginTop:10 }}>
                 <select value={assignmentForm.student_id} onChange={(e) => setAssignmentForm({ ...assignmentForm, student_id: e.target.value })} required>
                   <option value="">Select student</option>
@@ -371,7 +430,14 @@ window.StudentCouncil = function StudentCouncil({ user }) {
                   {(context?.availableRoles || []).map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
                 <div className="grid cols-2"><input type="date" value={assignmentForm.start_date} onChange={(e) => setAssignmentForm({ ...assignmentForm, start_date: e.target.value })} required /><input type="date" value={assignmentForm.end_date} onChange={(e) => setAssignmentForm({ ...assignmentForm, end_date: e.target.value })} /></div>
-                <button className="btn" type="submit">Save Assignment</button>
+                <label className="muted" style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                  <input type="checkbox" checked={assignmentForm.active} onChange={(e) => setAssignmentForm({ ...assignmentForm, active: e.target.checked })} />
+                  Active assignment
+                </label>
+                <div style={{ display:'flex', gap:8 }}>
+                  <button className="btn" type="submit">{assignmentMode === 'edit' ? 'Update Assignment' : 'Save Assignment'}</button>
+                  {assignmentMode === 'edit' && <button className="btn btn-secondary" type="button" onClick={resetAssignmentForm}>Cancel</button>}
+                </div>
               </form>
             </div>
           )}

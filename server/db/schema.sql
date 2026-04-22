@@ -354,7 +354,10 @@ CREATE TABLE IF NOT EXISTS council_assignments (
   end_date     TEXT,
   active       INTEGER NOT NULL DEFAULT 1,
   assigned_by  INTEGER REFERENCES users(id),
-  created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+  updated_by   INTEGER REFERENCES users(id),
+  notes        TEXT,
+  created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_council_assignments_student ON council_assignments (student_id, active);
