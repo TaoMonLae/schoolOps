@@ -506,9 +506,21 @@ function runMigrations() {
         end_date TEXT,
         active INTEGER NOT NULL DEFAULT 1,
         assigned_by INTEGER REFERENCES users(id),
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        updated_by INTEGER REFERENCES users(id),
+        notes TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
     `);
+  }
+  if (!columnExists('council_assignments', 'updated_at')) {
+    db.exec("ALTER TABLE council_assignments ADD COLUMN updated_at TEXT NOT NULL DEFAULT (datetime('now'))");
+  }
+  if (!columnExists('council_assignments', 'updated_by')) {
+    db.exec('ALTER TABLE council_assignments ADD COLUMN updated_by INTEGER REFERENCES users(id)');
+  }
+  if (!columnExists('council_assignments', 'notes')) {
+    db.exec('ALTER TABLE council_assignments ADD COLUMN notes TEXT');
   }
 
   if (!tableExists('council_issues')) {

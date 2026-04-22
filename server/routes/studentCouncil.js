@@ -63,6 +63,10 @@ function normalizeDate(value) {
   return txt.slice(0, 10);
 }
 
+function todayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function hasRoleManagementAccess(user) {
   return user.role === 'admin' || user.role === 'teacher';
 }
@@ -181,10 +185,12 @@ router.get('/assignments', requireAuth, requireCouncilOrManager, (req, res) => {
   const activeFlag = active === '0' ? null : 1;
 
   let sql = `
-    SELECT ca.*, s.name AS student_name, s.gender, s.level, assigner.name AS assigned_by_name
+    SELECT ca.*, s.name AS student_name, s.gender, s.level,
+           assigner.name AS assigned_by_name, updater.name AS updated_by_name
     FROM council_assignments ca
     JOIN students s ON s.id = ca.student_id
     LEFT JOIN users assigner ON assigner.id = ca.assigned_by
+    LEFT JOIN users updater ON updater.id = ca.updated_by
   `;
   const params = [];
   if (activeFlag !== null) {
@@ -223,15 +229,15 @@ router.post('/assignments', requireAuth, (req, res) => {
     if (active) {
       db.prepare(`
         UPDATE council_assignments
-        SET active = 0, end_date = COALESCE(end_date, ?)
+        SET active = 0, end_date = COALESCE(end_date, ?), updated_at = datetime('now'), updated_by = ?
         WHERE student_id = ? AND council_role = ? AND active = 1
-      `).run(startDate, studentId, councilRole);
+      `).run(startDate, req.user.id, studentId, councilRole);
     }
 
     const result = db.prepare(`
-      INSERT INTO council_assignments (student_id, council_role, start_date, end_date, active, assigned_by)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(studentId, councilRole, startDate, endDate, active, req.user.id);
+      INSERT INTO council_assignments (student_id, council_role, start_date, end_date, active, assigned_by, updated_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(studentId, councilRole, startDate, endDate, active, req.user.id, req.user.id);
 
     audit(req.user.id, 'create', 'council_assignments', result.lastInsertRowid, `Assigned ${councilRole} to student ${studentId}`);
 
@@ -251,6 +257,138 @@ router.post('/assignments', requireAuth, (req, res) => {
 
   const id = tx();
   res.status(201).json({ id });
+});
+
+router.patch('/assignments/:id', requireAuth, (req, res) => {
+  if (!hasRoleManagementAccess(req.user)) {
+    return res.status(403).json({ error: 'Only admin/staff can update council assignments.' });
+  }
+
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'Valid assignment id is required.' });
+
+  const existing = db.prepare('SELECT * FROM council_assignments WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ error: 'Assignment not found.' });
+
+  const studentId = Number.parseInt(req.body.student_id, 10);
+  const councilRole = normalizeText(req.body.council_role).toLowerCase();
+  const startDate = normalizeDate(req.body.start_date);
+  const endDate = normalizeDate(req.body.end_date);
+  const active = req.body.active ? 1 : 0;
+
+  if (!Number.isInteger(studentId)) return res.status(400).json({ error: 'Valid student_id is required.' });
+  if (!COUNCIL_ROLES.includes(councilRole)) return res.status(400).json({ error: 'Invalid council role.' });
+  if (!startDate) return res.status(400).json({ error: 'start_date is required.' });
+
+  const student = db.prepare('SELECT id, name, user_id FROM students WHERE id = ?').get(studentId);
+  if (!student) return res.status(404).json({ error: 'Student not found.' });
+
+  let normalizedEndDate = endDate;
+  if (!active && !normalizedEndDate) normalizedEndDate = todayIsoDate();
+  if (active && normalizedEndDate && normalizedEndDate < startDate) {
+    return res.status(400).json({ error: 'end_date cannot be before start_date for an active assignment.' });
+  }
+
+  const tx = db.transaction(() => {
+    if (active) {
+      const conflict = db.prepare(`
+        SELECT id FROM council_assignments
+        WHERE student_id = ? AND council_role = ? AND active = 1 AND id != ?
+        ORDER BY date(start_date) DESC, id DESC
+      `).all(studentId, councilRole, id);
+
+      for (const row of conflict) {
+        db.prepare(`
+          UPDATE council_assignments
+          SET active = 0, end_date = COALESCE(end_date, ?), updated_at = datetime('now'), updated_by = ?
+          WHERE id = ?
+        `).run(startDate, req.user.id, row.id);
+      }
+    }
+
+    db.prepare(`
+      UPDATE council_assignments
+      SET student_id = ?,
+          council_role = ?,
+          start_date = ?,
+          end_date = ?,
+          active = ?,
+          updated_at = datetime('now'),
+          updated_by = ?
+      WHERE id = ?
+    `).run(studentId, councilRole, startDate, normalizedEndDate, active, req.user.id, id);
+
+    audit(
+      req.user.id,
+      'update',
+      'council_assignments',
+      id,
+      `Updated assignment ${id}: student ${existing.student_id}→${studentId}, role ${existing.council_role}→${councilRole}, active ${existing.active}→${active}`
+    );
+
+    if (student.user_id) {
+      createNotification({
+        userId: student.user_id,
+        type: 'council_assignment',
+        title: 'Student Council assignment updated',
+        message: `Your council assignment was updated to ${ROLE_LABELS[councilRole] || councilRole}.`,
+        entityType: 'council_assignment',
+        entityId: id,
+      });
+    }
+  });
+
+  tx();
+  res.json({ ok: true });
+});
+
+router.post('/assignments/:id/deactivate', requireAuth, (req, res) => {
+  if (!hasRoleManagementAccess(req.user)) {
+    return res.status(403).json({ error: 'Only admin/staff can deactivate council assignments.' });
+  }
+
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'Valid assignment id is required.' });
+
+  const assignment = db.prepare(`
+    SELECT ca.*, s.name AS student_name, s.user_id
+    FROM council_assignments ca
+    JOIN students s ON s.id = ca.student_id
+    WHERE ca.id = ?
+  `).get(id);
+
+  if (!assignment) return res.status(404).json({ error: 'Assignment not found.' });
+  if (!assignment.active) return res.json({ ok: true, alreadyInactive: true });
+
+  const today = todayIsoDate();
+  const endDate = normalizeDate(assignment.end_date) || today;
+
+  db.prepare(`
+    UPDATE council_assignments
+    SET active = 0, end_date = ?, updated_at = datetime('now'), updated_by = ?
+    WHERE id = ?
+  `).run(endDate, req.user.id, id);
+
+  audit(
+    req.user.id,
+    'deactivate',
+    'council_assignments',
+    id,
+    `Deactivated assignment ${id} (${assignment.council_role}) for student ${assignment.student_id}`
+  );
+
+  if (assignment.user_id) {
+    createNotification({
+      userId: assignment.user_id,
+      type: 'council_assignment',
+      title: 'Student Council assignment ended',
+      message: `Your ${ROLE_LABELS[assignment.council_role] || assignment.council_role} assignment was ended.`,
+      entityType: 'council_assignment',
+      entityId: id,
+    });
+  }
+
+  res.json({ ok: true, id, end_date: endDate });
 });
 
 router.get('/issues', requireAuth, requireCouncilOrManager, (req, res) => {
