@@ -44,6 +44,9 @@ if (process.env.NODE_ENV === 'production') {
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+// Respect X-Forwarded-For from first trusted reverse proxy (e.g. DigitalOcean).
+app.set('trust proxy', 1);
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet({
   noSniff: true,
@@ -71,9 +74,18 @@ app.use(cookieParser());
 app.use(issueCsrfToken);
 app.use('/api', requireCsrf);
 
-const loginLimiter = rateLimit({
+const loginIpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const loginAccountLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
+  keyGenerator: (req) => `${req.ip}:${(req.body?.email || req.body?.username || '').toLowerCase().trim()}`,
   message: { error: 'Too many login attempts. Try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -83,7 +95,7 @@ const loginLimiter = rateLimit({
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
-app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/login', loginIpLimiter, loginAccountLimiter);
 app.use('/api/auth',         authRoutes);
 app.use('/api/students',     studentRoutes);
 app.use('/api/fees',         feeRoutes);
