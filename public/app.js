@@ -580,6 +580,7 @@ const PAGE_TITLES = {
 };
 
 function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuToggle, onThemeToggle, themeMode }) {
+  const { settings } = useContext(AuthContext);
   const pageMeta = PAGE_META[page] || {};
   const roleLabel = user?.role ? `${String(user.role).charAt(0).toUpperCase()}${String(user.role).slice(1)}` : 'Account';
   const identityLabel = `${user?.name || 'User'} · ${roleLabel}`;
@@ -591,6 +592,9 @@ function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuT
         <button className="menu-toggle" onClick={onMenuToggle} type="button" aria-label="Open menu">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
+        {settings.logo_url && (
+          <img src={settings.logo_url} alt="" className="brand-logo topbar-logo mobile-only" />
+        )}
         <div className="page-heading">
           <div className="page-kicker">SchoolOps Workspace</div>
           <h2>{PAGE_TITLES[page] || page}</h2>

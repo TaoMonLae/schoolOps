@@ -509,7 +509,7 @@ window.Students = function Students({ user }) {
         ) : (
           <>
             <div className="table-scroll">
-              <table>
+              <table className="mobile-stack-table">
               <thead>
                 <tr>
                   <th>Student</th>
@@ -524,7 +524,7 @@ window.Students = function Students({ user }) {
                   <tr><td colSpan={8}><window.StatePanel type="empty"  message="No students found" compact /></td></tr>
                 ) : paged.map(s => (
                   <tr key={s.id}>
-                    <td>
+                    <td data-label="Student">
                       <div className="student-identity">
                         <strong>{s.name}</strong>
                         <div className="student-identity-meta">
@@ -534,7 +534,7 @@ window.Students = function Students({ user }) {
                         </div>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Contact">
                       {s.main_contact_name ? (
                         <div style={{ display:'grid', gap:4 }}>
                           <div style={{ fontWeight:600 }}>{s.main_contact_name}</div>
@@ -543,10 +543,10 @@ window.Students = function Students({ user }) {
                         </div>
                       ) : <span style={{ color:'var(--muted)' }}>—</span>}
                     </td>
-                    <td>{fmtRM(s.fee_amount)}<span style={{ color:'var(--muted)', fontSize:11 }}>/{s.fee_frequency}</span></td>
-                    <td><window.StatusBadge status={s.hostel_status || 'non_boarder'} /></td>
-                    <td><window.StatusBadge status={s.status} /></td>
-                    <td>
+                    <td data-label="Fee">{fmtRM(s.fee_amount)}<span style={{ color:'var(--muted)', fontSize:11 }}>/{s.fee_frequency}</span></td>
+                    <td data-label="Hostel"><window.StatusBadge status={s.hostel_status || 'non_boarder'} /></td>
+                    <td data-label="Status"><window.StatusBadge status={s.status} /></td>
+                    <td data-label="Login">
                       {s.user_id ? (
                         <div className="student-login-status">
                           <span className="badge badge-green">Linked</span>
@@ -558,13 +558,13 @@ window.Students = function Students({ user }) {
                         </div>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Payment">
                       {s.status !== 'active'
                         ? <span className="badge badge-gray">N/A</span>
                         : <window.StatusBadge status={s.current_month_status} />
                       }
                     </td>
-                    <td>
+                    <td data-label="Actions">
                       <div className="action-group student-row-actions">
                         {isAdmin && <button className="btn btn-secondary btn-sm" onClick={() => openEdit(s)}>Edit</button>}
                         {isAdmin && s.status === 'active' && (

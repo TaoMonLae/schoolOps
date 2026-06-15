@@ -1844,8 +1844,10 @@
       }
       .sidebar.mobile-open { transform: translateX(0); }
       .menu-toggle { display: inline-flex; }
-      .topbar { height: var(--header-h); padding: 0 14px; flex-wrap: nowrap; align-items: center; }
-      .topbar-leading { flex: 1 1 0; min-width: 0; align-items: center; overflow: hidden; }
+      .topbar-logo { width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; }
+      .topbar { height: var(--header-h); padding: 0 12px; flex-wrap: nowrap; align-items: center; gap: 8px; }
+      .topbar-leading { flex: 1 1 0; min-width: 0; align-items: center; overflow: hidden; gap: 8px; }
+      .page-subtitle { display: none; }
       .topbar-trailing { flex-shrink: 0; flex-wrap: nowrap; gap: 6px; }
       .topbar .page-kicker { display: none; }
       .page-content { padding: 13px; }
