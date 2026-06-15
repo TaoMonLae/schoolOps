@@ -272,13 +272,20 @@ function AuthProvider({ children }) {
       method: 'POST',
       body: { username, password },
     });
+    // On native, the server returns a bearer token (no cookie). Persist it so
+    // subsequent requests authenticate. No-op on the website (u.token undefined).
+    if (u && u.token) window.setAuthToken?.(u.token);
     setUser(u);
     return u;
   }, []);
 
   const logout = useCallback(async () => {
-    await api('/api/auth/logout', { method: 'POST' });
-    setUser(null);
+    try {
+      await api('/api/auth/logout', { method: 'POST' });
+    } finally {
+      window.setAuthToken?.('');
+      setUser(null);
+    }
   }, []);
 
   return (

@@ -14,6 +14,8 @@
     "bootstrap:admin": "node server/db/bootstrap-admin.js"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/core": "^8.4.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^9.4.3",
     "cookie-parser": "^1.4.6",
@@ -27,6 +29,7 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.4.0",
     "nodemon": "^3.1.0"
   }
 }

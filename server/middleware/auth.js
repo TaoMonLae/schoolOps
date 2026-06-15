@@ -11,11 +11,34 @@ function getSecret() {
 }
 
 /**
+ * Return the bearer token from Authorization, if present.
+ */
+function getBearerToken(req) {
+  const header = req.get?.('Authorization') || req.headers?.authorization;
+  if (!header) return null;
+
+  const match = header.match(/^Bearer\s+(.+)$/i);
+  return match ? match[1].trim() : null;
+}
+
+/**
+ * Use bearer auth when explicitly provided; otherwise keep the existing
+ * cookie session token path.
+ */
+function getRequestToken(req) {
+  return getBearerToken(req) || req.cookies?.token;
+}
+
+function hasBearerToken(req) {
+  return !!getBearerToken(req);
+}
+
+/**
  * Attach verified user payload to req.user.
  * Returns 401 if token is missing or invalid.
  */
 function requireAuth(req, res, next) {
-  const token = req.cookies?.token;
+  const token = getRequestToken(req);
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
   try {
@@ -62,7 +85,7 @@ function requireRole(...roles) {
  * before requireAuth has run (e.g. for rate-limit keying).
  */
 function peekUserId(req) {
-  const token = req.cookies?.token;
+  const token = getRequestToken(req);
   if (!token) return null;
   try {
     const payload = jwt.verify(token, getSecret());
@@ -80,4 +103,4 @@ function signToken(user) {
   );
 }
 
-module.exports = { requireAuth, requireRole, signToken, peekUserId };
+module.exports = { requireAuth, requireRole, signToken, peekUserId, hasBearerToken };

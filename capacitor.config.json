@@ -1,0 +1,9 @@
+{
+  "appId": "com.monrefugeelc.schoolops",
+  "appName": "MRLC Ledger",
+  "webDir": "public",
+  "server": {
+    "url": "https://ledger.monrefugeelc.com",
+    "cleartext": false
+  }
+}

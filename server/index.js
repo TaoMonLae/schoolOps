@@ -46,6 +46,40 @@ if (process.env.NODE_ENV === 'production') {
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+const mobileCorsOrigins = new Set([
+  'capacitor://localhost',
+  'http://localhost',
+  'https://localhost',
+]);
+const webCorsOrigins = new Set([
+  'https://ledger.monrefugeelc.com',
+  ...(process.env.WEB_ORIGIN || '').split(',').map((origin) => origin.trim()).filter(Boolean),
+]);
+const allowedCorsHeaders = 'Authorization, Content-Type, X-Client, X-CSRF-Token';
+
+function isAllowedCorsOrigin(origin) {
+  if (!origin) return false;
+  if (mobileCorsOrigins.has(origin) || webCorsOrigins.has(origin)) return true;
+  return /^https?:\/\/localhost(?::\d+)?$/.test(origin);
+}
+
+function corsMiddleware(req, res, next) {
+  const origin = req.get('Origin');
+  if (isAllowedCorsOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', allowedCorsHeaders);
+    res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS');
+  }
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  next();
+}
+
 // Respect X-Forwarded-For from first trusted reverse proxy (e.g. DigitalOcean).
 app.set('trust proxy', 1);
 
@@ -54,6 +88,7 @@ app.use((req, res, next) => {
   req.id = generateRequestId();
   next();
 });
+app.use(corsMiddleware);
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet({
