@@ -11,7 +11,8 @@
     "dev": "nodemon server/index.js",
     "seed": "npm run seed:demo",
     "seed:demo": "node server/db/seed.js",
-    "bootstrap:admin": "node server/db/bootstrap-admin.js"
+    "bootstrap:admin": "node server/db/bootstrap-admin.js",
+    "build:mobile": "node scripts/build-mobile.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
@@ -29,7 +30,11 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/preset-react": "^7.24.0",
     "@capacitor/cli": "^8.4.0",
-    "nodemon": "^3.1.0"
+    "nodemon": "^3.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }

@@ -34,6 +34,46 @@ window.mobileAuthHeaders = function () {
   return h;
 };
 
+// ── Offline cache for GET responses ───────────────────────────────────────────
+// Last successful JSON GET responses are stored so the app can show data when
+// the device is offline. Only used as a fallback when a request fails to reach
+// the network — online behaviour is unchanged.
+const OFFLINE_CACHE_PREFIX = 'schoolops_cache:';
+window.readOfflineCache = function (key) {
+  try {
+    const v = localStorage.getItem(OFFLINE_CACHE_PREFIX + key);
+    return v ? JSON.parse(v) : undefined;
+  } catch (_) { return undefined; }
+};
+window.writeOfflineCache = function (key, data) {
+  try { localStorage.setItem(OFFLINE_CACHE_PREFIX + key, JSON.stringify(data)); } catch (_) {}
+};
+
+// Offline status banner (no plugin needed — uses webview online/offline events).
+(function setupOfflineBanner() {
+  if (typeof document === 'undefined') return;
+  function ensureBanner() {
+    let el = document.getElementById('offline-banner');
+    if (!el && document.body) {
+      el = document.createElement('div');
+      el.id = 'offline-banner';
+      el.textContent = 'Offline — showing last saved data';
+      el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#F6465D;color:#fff;text-align:center;padding:8px 12px;font-size:13px;font-weight:600;display:none;';
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+  function update() {
+    const b = ensureBanner();
+    if (b) b.style.display = (navigator.onLine === false) ? 'block' : 'none';
+  }
+  window.markOffline = function () { const b = ensureBanner(); if (b) b.style.display = 'block'; };
+  window.addEventListener('online', update);
+  window.addEventListener('offline', update);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', update);
+  else update();
+})();
+
 // API wrapper
 window.api = async function(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
@@ -41,18 +81,32 @@ window.api = async function(path, options = {}) {
     ? {}
     : (window.csrfHeaders?.() || { 'X-CSRF-Token': document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '' });
 
-  const res = await fetch(window.resolveUrl(path), {
-    headers: { 'Content-Type': 'application/json', ...csrf, ...window.mobileAuthHeaders(), ...(options.headers || {}) },
-    credentials: 'include',
-    ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(window.resolveUrl(path), {
+      headers: { 'Content-Type': 'application/json', ...csrf, ...window.mobileAuthHeaders(), ...(options.headers || {}) },
+      credentials: 'include',
+      ...options,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (networkErr) {
+    // Network unreachable (offline). Serve cached GET data when we have it.
+    if (method === 'GET') {
+      const cached = window.readOfflineCache(path);
+      if (cached !== undefined) { window.markOffline?.(); return cached; }
+    }
+    throw new Error('You appear to be offline. Please check your connection.');
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || 'Request failed');
   }
   const ct = res.headers.get('content-type') || '';
-  if (ct.includes('application/json')) return res.json();
+  if (ct.includes('application/json')) {
+    const data = await res.json();
+    if (method === 'GET') window.writeOfflineCache(path, data);
+    return data;
+  }
   return res.blob();
 };
 
