@@ -127,7 +127,7 @@ window.Reports = function Reports() {
     const currency = data.branding?.currency;
     return (
       <>
-        <div style={{ background: 'var(--dark)', color: 'white', borderRadius: 10, padding: '18px 24px', marginBottom: 16 }}>
+        <div className="report-masthead">
           <div style={{ fontSize: 18, fontWeight: 800 }}>{data.branding?.school_name || 'Monthly Financial Report'}</div>
           <div style={{ fontSize: 14, opacity: .7 }}>{data.label} · {data.branding?.subtitle || ''}</div>
         </div>
@@ -303,7 +303,7 @@ window.Reports = function Reports() {
     const currency = data.branding?.currency;
     return (
       <>
-        <div style={{ background: 'var(--dark)', color: 'white', borderRadius: 10, padding: '18px 24px', marginBottom: 16 }}>
+        <div className="report-masthead">
           <div style={{ fontSize: 18, fontWeight: 800 }}>{data.branding?.school_name || 'Yearly Financial Report'}</div>
           <div style={{ fontSize: 14, opacity: .7 }}>{data.year} · {data.branding?.subtitle || ''}</div>
         </div>
@@ -382,7 +382,7 @@ window.Reports = function Reports() {
 
     return (
       <>
-        <div style={{ background: 'var(--dark)', color: 'white', borderRadius: 10, padding: '18px 24px', marginBottom: 16 }}>
+        <div className="report-masthead">
           <div style={{ fontSize: 18, fontWeight: 800 }}>{data.branding?.school_name || 'Trends'}</div>
           <div style={{ fontSize: 14, opacity: .7 }}>Last {data.months} months</div>
         </div>
