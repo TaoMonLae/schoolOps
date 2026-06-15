@@ -295,22 +295,12 @@ function AuthProvider({ children }) {
   );
 }
 
-const LANDING_FEATURES = [
-  { icon: 'students', title: 'Student Management', description: 'Keep profiles, contacts, and lifecycle status organized in one reliable system.' },
-  { icon: 'fees', title: 'Fees & Receipts', description: 'Track payments, issue receipts, and follow arrears with finance-ready records.' },
-  { icon: 'duty', title: 'Duty Logs', description: 'Review student duty submissions, approvals, and updates in one streamlined flow.' },
-  { icon: 'attendance', title: 'Attendance', description: 'Capture attendance quickly and monitor patterns with clear class-level visibility.' },
-  { icon: 'inventory', title: 'Inventory', description: 'Track stock levels, movements, and reorder risks to avoid operational shortages.' },
-  { icon: 'reports', title: 'Reports & Oversight', description: 'Generate reports for leadership with accurate operational and finance snapshots.' },
-];
-
-// ── Login + Landing Page ──────────────────────────────────────────────────────
+// ── Login Page ────────────────────────────────────────────────────────────────
 function LoginPage() {
   const { login, settings } = useContext(AuthContext);
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   const handle = async (e) => {
     e.preventDefault();
@@ -325,113 +315,47 @@ function LoginPage() {
   };
 
   return (
-    <div className="landing-wrap">
-      <header className="landing-nav">
-        <div className="landing-brand">
+    <div className="login-screen">
+      <div className="landing-hero-signin login-card" id="signin">
+        <div className="hero-signin-header">
           {settings.logo_url ? (
-            <img src={settings.logo_url} alt={`${settings.school_name} logo`} className="brand-logo brand-logo-nav" />
+            <img src={settings.logo_url} alt="" className="brand-logo hero-signin-logo" />
           ) : (
-            <div className="login-logo-mark">
-              <NavIcon name="book" size={22} />
+            <div className="login-logo-mark hero-signin-icon">
+              <NavIcon name="book" size={24} />
             </div>
           )}
-          <div>
-            <strong>{settings.school_name}</strong>
-            <span>{settings.subtitle || 'School operations platform'}</span>
-          </div>
+          <h2>Sign in to your workspace</h2>
+          <p>{settings.school_name}</p>
         </div>
-        <a className="btn btn-secondary btn-sm" href="#features">Features</a>
-      </header>
-
-      <main className="landing-main">
-        <section className="landing-hero">
-          <div className="landing-hero-copy">
-            <span className="landing-kicker">Built for modern schools</span>
-            <h1>Run your school operations in one place</h1>
-            <p>
-              Manage students, fees, duty logs, attendance, inventory, and reporting
-              from a single streamlined platform built for administration teams.
-            </p>
-            <ul className="landing-hero-bullets">
-              <li>Student profiles, fees &amp; receipt tracking</li>
-              <li>Duty logs, attendance &amp; hostel management</li>
-              <li>Inventory, cashbook &amp; financial reports</li>
-              <li>Separate portals for admins and students</li>
-            </ul>
+        {error && <div className="login-error">{error}</div>}
+        <form className="login-form" onSubmit={handle}>
+          <div className="form-group">
+            <label htmlFor="username">Username</label>
+            <input
+              id="username"
+              value={form.username}
+              onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+              placeholder="Enter your username"
+              required autoFocus
+            />
           </div>
-
-          <div className="landing-hero-signin" id="signin">
-            <div className="hero-signin-header">
-              {settings.logo_url ? (
-                <img src={settings.logo_url} alt="" className="brand-logo hero-signin-logo" />
-              ) : (
-                <div className="login-logo-mark hero-signin-icon">
-                  <NavIcon name="book" size={24} />
-                </div>
-              )}
-              <h2>Sign in to your workspace</h2>
-              <p>{settings.school_name}</p>
-            </div>
-            {error && <div className="login-error">{error}</div>}
-            <form className="login-form" onSubmit={handle}>
-              <div className="form-group">
-                <label htmlFor="username">Username</label>
-                <input
-                  id="username"
-                  value={form.username}
-                  onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-                  placeholder="Enter your username"
-                  required autoFocus
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="password">Password</label>
-                <input
-                  id="password"
-                  type="password"
-                  value={form.password}
-                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  placeholder="Enter your password"
-                  required
-                />
-              </div>
-              <button className="btn btn-primary login-submit" type="submit" disabled={busy}>
-                {busy ? 'Signing in…' : 'Sign In'}
-              </button>
-            </form>
-            {isLocal && (
-              <div className="demo-credentials">
-                <strong>Dev accounts:</strong><br />
-                Admin: <code>admin / admin123</code><br />
-                Teacher: <code>teacher1 / teacher123</code><br />
-                Student: <code>student1 / student123</code>
-              </div>
-            )}
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={form.password}
+              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+              placeholder="Enter your password"
+              required
+            />
           </div>
-        </section>
-
-        <section className="landing-section" id="features">
-          <div className="landing-section-head">
-            <h2>Everything your school needs in one system</h2>
-            <p>Purpose-built modules for administration, teaching staff, and students.</p>
-          </div>
-          <div className="landing-feature-grid">
-            {LANDING_FEATURES.map(feature => (
-              <article key={feature.title} className="landing-card feature-card">
-                <span className="feature-icon"><NavIcon name={feature.icon} size={18} /></span>
-                <h3>{feature.title}</h3>
-                <p>{feature.description}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-      </main>
-
-      <footer className="landing-footer">
-        <span>© {new Date().getFullYear()} {settings.school_name}</span>
-        <a href="#features">Features</a>
-        <a href="#signin">Sign In</a>
-      </footer>
+          <button className="btn btn-primary login-submit" type="submit" disabled={busy}>
+            {busy ? 'Signing in…' : 'Sign In'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -603,16 +527,6 @@ function Topbar({ page, setPage, pageOptions, user, forcePasswordChange, onMenuT
         </div>
       </div>
       <div className="topbar-trailing">
-        <div className="topbar-meta desktop-only">
-          <span className="context-chip role">
-            <span>Role</span>
-            <strong>{roleLabel}</strong>
-          </span>
-          <span className="context-chip">
-            <span>Signed in as</span>
-            <strong>{user?.name || 'User'}</strong>
-          </span>
-        </div>
         <select
           value={page}
           onChange={e => setPage(e.target.value)}
