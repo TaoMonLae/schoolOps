@@ -34,6 +34,31 @@ window.mobileAuthHeaders = function () {
   return h;
 };
 
+// Capture or pick a photo on native via the Capacitor Camera plugin, returning a
+// File ready for apiFormData/FormData. Returns null on the web so callers fall
+// back to the existing <input type="file">. Requires @capacitor/camera installed.
+window.capturePhoto = async function (opts = {}) {
+  const Camera = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Camera;
+  if (!window.IS_NATIVE || !Camera) return null;
+  const photo = await Camera.getPhoto({
+    resultType: 'base64',
+    source: opts.source || 'PROMPT', // let the user pick Camera or Gallery
+    quality: 70,
+    allowEditing: false,
+    saveToGallery: false,
+    promptLabelHeader: 'Attach a photo',
+    promptLabelPhoto: 'Choose from gallery',
+    promptLabelPicture: 'Take a photo',
+  });
+  const fmt = (photo.format || 'jpeg').toLowerCase();
+  const bin = atob(photo.base64String);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const type = fmt === 'jpg' ? 'image/jpeg' : 'image/' + fmt;
+  const ext = fmt === 'jpeg' ? 'jpg' : fmt;
+  return new File([bytes], 'photo-' + Date.now() + '.' + ext, { type });
+};
+
 // ── Offline cache for GET responses ───────────────────────────────────────────
 // Last successful JSON GET responses are stored so the app can show data when
 // the device is offline. Only used as a fallback when a request fails to reach

@@ -117,6 +117,34 @@ Log in once while online (so data caches), then enable Airplane mode on the
 device/emulator and reopen the app — the shell loads and cached screens render
 with the red "Offline" banner.
 
+## Native features
+
+### Camera / photo capture (done — needs the plugin installed)
+
+The attachment uploads in **Expenditures** and **Duty Logs** now show a
+"📷 Take / choose photo" button on the device. It calls
+`window.capturePhoto()` (in `public/components/utils.js`), which uses the
+Capacitor Camera plugin to take a photo or pick one from the gallery and turns it
+into a file the existing upload endpoint accepts. On the website the button is
+hidden and the normal file picker is used.
+
+Install the plugin and rebuild:
+
+```bash
+npm install @capacitor/camera
+npm run build:mobile
+npx cap sync
+npx cap open android   # then Run
+```
+
+Permissions: the plugin captures via the system camera/photo-picker intents, so
+no manifest changes are needed for the "Prompt" mode used here. (If you later
+switch to opening the camera directly with a declared `CAMERA` permission, you'd
+add it to `android/app/src/main/AndroidManifest.xml` and request it at runtime.)
+
+Test: open Add Expenditure or a Duty Log, tap "📷 Take / choose photo", pick
+Camera or Gallery, confirm "Selected: photo-….jpg" appears, then save/upload.
+
 ## Then continue with the prompt pack
 
 - Prompt 5 — camera / file upload
