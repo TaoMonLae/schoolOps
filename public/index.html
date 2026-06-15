@@ -1245,6 +1245,25 @@
       border-color: #4A1520;
       color: #F6465D;
     }
+    /* Pills / stat surfaces that hardcode light backgrounds — flip for dark themes */
+    :root[data-theme="night_study"] .hero-pill,
+    :root[data-theme="composio_dark"] .hero-pill {
+      background: rgba(30,25,12,.96);
+      border-color: rgba(240,185,11,.14);
+      color: var(--mid);
+    }
+    :root[data-theme="night_study"] .stat-card,
+    :root[data-theme="composio_dark"] .stat-card {
+      background: rgba(30,25,12,.96);
+      border-color: rgba(240,185,11,.1);
+      color: var(--dark);
+    }
+    :root[data-theme="night_study"] .students-inline-stats > *,
+    :root[data-theme="composio_dark"] .students-inline-stats > * {
+      background: rgba(240,185,11,.06);
+      border-color: rgba(240,185,11,.14);
+      color: var(--mid);
+    }
 
     /* ══ BADGES ══════════════════════════════════════ */
     .badge {
