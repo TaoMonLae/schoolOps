@@ -31,7 +31,6 @@ async function createBackupSnapshot(targetPath) {
 router.get('/status', requireAuth, requireRole('admin'), (req, res) => {
   const settings = getSettings();
   res.json({
-    db_path: dbPath,
     app_version: VERSION,
     environment: process.env.NODE_ENV || 'development',
     backup_dir: backupDir(),

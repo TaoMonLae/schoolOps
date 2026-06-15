@@ -57,10 +57,15 @@ function normalizeContactPayload(payload = {}) {
   };
 }
 
-// GET /api/students — list with current-month fee and arrears status
+// GET /api/students — list with current-month fee and arrears status (paginated)
 router.get('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   const { month, year } = resolvePeriod(req);
-  res.json(buildArrearsRecords(month, year));
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, parseInt(req.query.limit, 10) || 50); // cap at 100
+  const offset = (page - 1) * limit;
+
+  const result = buildArrearsRecords(month, year, { limit, offset });
+  res.json(result);
 });
 
 // GET /api/students/arrears?month=&year=&status=current|overdue|serious&search=
@@ -171,7 +176,15 @@ router.post(
   '/import',
   requireAuth,
   requireRole('admin'),
-  multipartUpload({ fileField: 'file', maxFileSize: 5 * 1024 * 1024 }),
+  multipartUpload({
+    fileField: 'file',
+    maxFileSize: 5 * 1024 * 1024,
+    allowedMimeTypes: [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel'
+    ],
+    allowedExtensions: ['xlsx', 'xls']
+  }),
   (req, res) => {
     const file = req.uploadedFile;
     if (!file) return res.status(400).json({ error: 'No file uploaded' });

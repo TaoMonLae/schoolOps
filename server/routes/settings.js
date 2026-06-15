@@ -81,7 +81,12 @@ router.post(
   '/logo',
   requireAuth,
   requireRole('admin'),
-  multipartUpload({ fileField: 'logo', maxFileSize: MAX_LOGO_SIZE }),
+  multipartUpload({
+    fileField: 'logo',
+    maxFileSize: MAX_LOGO_SIZE,
+    allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp'],
+    allowedExtensions: ['png', 'jpg', 'jpeg', 'webp']
+  }),
   (req, res) => {
     const file = req.uploadedFile;
     if (!file) return res.status(400).json({ error: 'No logo file uploaded' });

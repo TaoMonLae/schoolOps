@@ -29,7 +29,7 @@ function parseDisposition(value) {
   return out;
 }
 
-function multipartUpload({ fileField = 'file', maxFileSize = MAX_DEFAULT } = {}) {
+function multipartUpload({ fileField = 'file', maxFileSize = MAX_DEFAULT, allowedMimeTypes = null, allowedExtensions = null } = {}) {
   return (req, res, next) => {
     const contentType = req.headers['content-type'] || '';
     if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
@@ -85,10 +85,31 @@ function multipartUpload({ fileField = 'file', maxFileSize = MAX_DEFAULT } = {})
           return res.status(400).json({ error: `File too large (max ${Math.floor(maxFileSize / (1024 * 1024))}MB)` });
         }
 
+        const mimetype = (headers['content-type'] || 'application/octet-stream').toLowerCase();
+        const originalName = disposition.filename;
+
+        // MIME type validation
+        if (allowedMimeTypes && !allowedMimeTypes.includes(mimetype)) {
+          return res.status(400).json({
+            error: `Invalid file type: ${mimetype}. Allowed: ${allowedMimeTypes.join(', ')}`
+          });
+        }
+
+        // Extension validation (defense in depth)
+        if (allowedExtensions) {
+          const ext = originalName.split('.').pop().toLowerCase();
+          const normalizedExt = ext.length > 0 ? ext : '';
+          if (!allowedExtensions.includes(normalizedExt)) {
+            return res.status(400).json({
+              error: `Invalid file extension: .${normalizedExt || 'none'}. Allowed: ${allowedExtensions.map(e => '.' + e).join(', ')}`
+            });
+          }
+        }
+
         req.uploadedFile = {
           fieldname: disposition.name,
-          originalname: disposition.filename,
-          mimetype: headers['content-type'] || 'application/octet-stream',
+          originalname: originalName,
+          mimetype: mimetype,
           size: fileBuffer.length,
           buffer: fileBuffer,
         };

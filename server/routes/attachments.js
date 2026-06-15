@@ -38,7 +38,21 @@ function parseEntity(req, res) {
   return { entityType, entityId, entity };
 }
 
-router.post('/:entityType/:entityId', requireAuth, multipartUpload({ fileField: 'file', maxFileSize: MAX_FILE_SIZE }), (req, res) => {
+router.post('/:entityType/:entityId', requireAuth,
+  multipartUpload({
+    fileField: 'file',
+    maxFileSize: MAX_FILE_SIZE,
+    allowedMimeTypes: [
+      'image/png',
+      'image/jpeg',
+      'image/jpg',
+      'image/gif',
+      'image/webp',
+      'application/pdf'
+    ],
+    allowedExtensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf']
+  }),
+  (req, res) => {
   const parsed = parseEntity(req, res);
   if (!parsed) return;
 

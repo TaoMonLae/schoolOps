@@ -6,6 +6,8 @@ const path         = require('path');
 const helmet       = require('helmet');
 const rateLimit    = require('express-rate-limit');
 const { issueCsrfToken, requireCsrf } = require('./middleware/csrf');
+const { peekUserId } = require('./middleware/auth');
+const { generateRequestId, createLogger } = require('./logger');
 
 const authRoutes        = require('./routes/auth');
 const studentRoutes     = require('./routes/students');
@@ -46,6 +48,12 @@ const PORT = process.env.PORT || 3000;
 
 // Respect X-Forwarded-For from first trusted reverse proxy (e.g. DigitalOcean).
 app.set('trust proxy', 1);
+
+// ─── Request ID Middleware ─────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  req.id = generateRequestId();
+  next();
+});
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet({
@@ -91,12 +99,36 @@ const loginAccountLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const mutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  keyGenerator: (req) => {
+    // Limit by user ID when a valid token is present; fall back to IP otherwise.
+    // peekUserId decodes the JWT directly, so this works even though this
+    // limiter runs before the per-route requireAuth populates req.user.
+    const userId = req.user?.id ?? peekUserId(req);
+    return userId ? `user:${userId}` : `ip:${req.ip}`;
+  },
+  message: { error: 'Too many requests. Try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Serve static frontend
 app.use(express.static(path.join(__dirname, '../public')));
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth/login', loginIpLimiter, loginAccountLimiter);
 app.use('/api/auth',         authRoutes);
+
+// Global mutation rate limiting for POST/PUT/DELETE/PATCH on all other /api endpoints
+app.use('/api', (req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    return mutationLimiter(req, res, next);
+  }
+  next();
+});
+
 app.use('/api/students',     studentRoutes);
 app.use('/api/fees',         feeRoutes);
 app.use('/api/duty',         dutyRoutes);
@@ -114,8 +146,8 @@ app.use('/api/receipts', receiptRoutes);
 app.use('/api/accounts',  accountRoutes);
 app.use('/api/cashbook',  cashbookRoutes);
 app.use('/api/funds',     fundsRoutes);
-app.use('/api/closing',     closingRoutes);
-app.use('/api/discipline',  disciplineRoutes);
+app.use('/api/closing',    closingRoutes);
+app.use('/api/discipline', disciplineRoutes);
 app.use('/api/student-council',  studentCouncilRoutes);
 
 // ─── SPA fallback — serve index.html for any non-API route ───────────────────
@@ -129,7 +161,8 @@ app.get('*', (req, res) => {
 
 // ─── Global error handler ─────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  const logger = createLogger(req);
+  logger.error('Unhandled error', { error: err.message, stack: err.stack });
   res.status(500).json({ error: 'Internal server error' });
 });
 

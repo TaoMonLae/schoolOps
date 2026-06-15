@@ -56,6 +56,22 @@ function requireRole(...roles) {
   };
 }
 
+/**
+ * Best-effort extraction of the user id from a request's JWT, without
+ * enforcing auth or touching the DB. Returns the id or null. Safe to call
+ * before requireAuth has run (e.g. for rate-limit keying).
+ */
+function peekUserId(req) {
+  const token = req.cookies?.token;
+  if (!token) return null;
+  try {
+    const payload = jwt.verify(token, getSecret());
+    return payload?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function signToken(user) {
   return jwt.sign(
     { id: user.id, username: user.username, name: user.name, role: user.role },
@@ -64,4 +80,4 @@ function signToken(user) {
   );
 }
 
-module.exports = { requireAuth, requireRole, signToken };
+module.exports = { requireAuth, requireRole, signToken, peekUserId };
