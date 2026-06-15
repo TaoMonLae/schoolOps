@@ -57,15 +57,23 @@ function normalizeContactPayload(payload = {}) {
   };
 }
 
-// GET /api/students — list with current-month fee and arrears status (paginated)
+// GET /api/students — list with current-month fee and arrears status.
+// Returns a plain array by default (the UI paginates client-side). Switches to
+// the paginated shape { total, rows } only when page/limit are explicitly passed,
+// so existing array-consuming clients keep working.
 router.get('/', requireAuth, requireRole('admin', 'teacher'), (req, res) => {
   const { month, year } = resolvePeriod(req);
+  const wantsPagination = req.query.page !== undefined || req.query.limit !== undefined;
+
+  if (!wantsPagination) {
+    return res.json(buildArrearsRecords(month, year));
+  }
+
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, parseInt(req.query.limit, 10) || 50); // cap at 100
   const offset = (page - 1) * limit;
 
-  const result = buildArrearsRecords(month, year, { limit, offset });
-  res.json(result);
+  res.json(buildArrearsRecords(month, year, { limit, offset }));
 });
 
 // GET /api/students/arrears?month=&year=&status=current|overdue|serious&search=
