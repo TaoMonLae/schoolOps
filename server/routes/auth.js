@@ -10,10 +10,6 @@ const DUMMY_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8.Wb5q8Dv4QkPm9pNkCgqPjqXUe8Oe
 const router = express.Router();
 const isProduction = process.env.NODE_ENV === 'production';
 
-function isMobileClient(req) {
-  return (req.get('X-Client') || '').toLowerCase().trim() === 'mobile';
-}
-
 function getCookieOptions() {
   return {
     httpOnly: true,
@@ -58,14 +54,11 @@ router.post('/login', (req, res) => {
   }
 
   const token = signToken(user);
-  const mobileClient = isMobileClient(req);
-  if (!mobileClient) {
-    res.cookie('token', token, getCookieOptions());
-  }
+  res.cookie('token', token, getCookieOptions());
 
   audit(user.id, 'LOGIN', 'users', user.id, `${user.username} logged in`);
 
-  const response = {
+  return res.json({
     id: user.id,
     name: user.name,
     username: user.username,
@@ -74,13 +67,7 @@ router.post('/login', (req, res) => {
       ? (db.prepare('SELECT id FROM students WHERE user_id = ?').get(user.id)?.id || null)
       : null,
     must_change_password: !!user.must_change_password,
-  };
-
-  if (mobileClient) {
-    response.token = token;
-  }
-
-  return res.json(response);
+  });
 });
 
 // POST /api/auth/logout

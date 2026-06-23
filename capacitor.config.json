@@ -1,8 +1,0 @@
-{
-  "appId": "com.monrefugeelc.schoolops",
-  "appName": "MRLC Ledger",
-  "webDir": "mobile-dist",
-  "server": {
-    "androidScheme": "https"
-  }
-}

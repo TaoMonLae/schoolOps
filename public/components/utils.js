@@ -1,64 +1,5 @@
 // ── Shared utilities available globally ──────────────────────────────────────
 
-// ── Mobile / Capacitor bridge ────────────────────────────────────────────────
-// On native (Capacitor) the app is served from capacitor://localhost, so it must
-// call the API at an absolute origin and authenticate with a bearer token instead
-// of the cookie the website uses. On the web, API_BASE is '' and no token is
-// stored, so every helper below behaves exactly as it did before.
-window.IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-window.API_BASE  = window.IS_NATIVE ? 'https://ledger.monrefugeelc.com' : '';
-
-const AUTH_TOKEN_KEY = 'schoolops_auth_token';
-window.getAuthToken = function () {
-  try { return localStorage.getItem(AUTH_TOKEN_KEY) || ''; } catch (_) { return ''; }
-};
-window.setAuthToken = function (token) {
-  try {
-    if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
-    else localStorage.removeItem(AUTH_TOKEN_KEY);
-  } catch (_) {}
-};
-
-// Prefix relative API paths with the configured origin (no-op on the website).
-window.resolveUrl = function (path) {
-  if (/^https?:\/\//i.test(path)) return path;
-  return (window.API_BASE || '') + path;
-};
-
-// Headers that authenticate native requests (bearer) and tag them as mobile.
-window.mobileAuthHeaders = function () {
-  const h = {};
-  if (window.IS_NATIVE) h['X-Client'] = 'mobile';
-  const token = window.getAuthToken();
-  if (token) h['Authorization'] = 'Bearer ' + token;
-  return h;
-};
-
-// Capture or pick a photo on native via the Capacitor Camera plugin, returning a
-// File ready for apiFormData/FormData. Returns null on the web so callers fall
-// back to the existing <input type="file">. Requires @capacitor/camera installed.
-window.capturePhoto = async function (opts = {}) {
-  const Camera = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Camera;
-  if (!window.IS_NATIVE || !Camera) return null;
-  const photo = await Camera.getPhoto({
-    resultType: 'base64',
-    source: opts.source || 'PROMPT', // let the user pick Camera or Gallery
-    quality: 70,
-    allowEditing: false,
-    saveToGallery: false,
-    promptLabelHeader: 'Attach a photo',
-    promptLabelPhoto: 'Choose from gallery',
-    promptLabelPicture: 'Take a photo',
-  });
-  const fmt = (photo.format || 'jpeg').toLowerCase();
-  const bin = atob(photo.base64String);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const type = fmt === 'jpg' ? 'image/jpeg' : 'image/' + fmt;
-  const ext = fmt === 'jpeg' ? 'jpg' : fmt;
-  return new File([bytes], 'photo-' + Date.now() + '.' + ext, { type });
-};
-
 // ── Offline cache for GET responses ───────────────────────────────────────────
 // Last successful JSON GET responses are stored so the app can show data when
 // the device is offline. Only used as a fallback when a request fails to reach
@@ -108,8 +49,8 @@ window.api = async function(path, options = {}) {
 
   let res;
   try {
-    res = await fetch(window.resolveUrl(path), {
-      headers: { 'Content-Type': 'application/json', ...csrf, ...window.mobileAuthHeaders(), ...(options.headers || {}) },
+    res = await fetch(path, {
+      headers: { 'Content-Type': 'application/json', ...csrf, ...(options.headers || {}) },
       credentials: 'include',
       ...options,
       body: options.body ? JSON.stringify(options.body) : undefined,
@@ -142,8 +83,8 @@ window.apiFormData = async function(path, formData, options = {}) {
     ? {}
     : (window.csrfHeaders?.() || { 'X-CSRF-Token': document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? '' });
 
-  const res = await fetch(window.resolveUrl(path), {
-    headers: { ...csrf, ...window.mobileAuthHeaders(), ...(options.headers || {}) },
+  const res = await fetch(path, {
+    headers: { ...csrf, ...(options.headers || {}) },
     credentials: 'include',
     ...options,
     body: formData,
@@ -159,7 +100,7 @@ window.apiFormData = async function(path, formData, options = {}) {
 
 // Download helper (for export endpoints)
 window.downloadFile = async function(url, filename) {
-  const res = await fetch(window.resolveUrl(url), { credentials: 'include', headers: { ...window.mobileAuthHeaders() } });
+  const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Export failed' }));
     throw new Error(err.error || 'Export failed');
@@ -176,7 +117,7 @@ window.downloadFile = async function(url, filename) {
 };
 
 window.downloadWithAuth = async function(url, filename) {
-  const res = await fetch(window.resolveUrl(url), { credentials: 'include', headers: { ...window.mobileAuthHeaders() } });
+  const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) throw new Error('Download failed');
   const blob = await res.blob();
   const a = document.createElement('a');

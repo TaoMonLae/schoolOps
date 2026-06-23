@@ -206,12 +206,6 @@ function DutySubmit({ user }) {
               <button type="button" className="btn btn-secondary" onClick={addItem}>+ Add Item</button>
               <div className="duty-upload-block">
                 <input className="duty-file-input" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e => setAttachmentFile(e.target.files?.[0] || null)} />
-                {window.IS_NATIVE && (
-                  <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop:6 }} onClick={async () => {
-                    try { const f = await window.capturePhoto(); if (f) { setAttachmentFile(f); showToast('Photo ready to upload'); } }
-                    catch (e) { showToast(e.message || 'Could not capture photo', 'error'); }
-                  }}>📷 Take / choose photo</button>
-                )}
                 {attachmentFile && <small style={{ display:'block', marginTop:4, color:'var(--muted)' }}>Selected: {attachmentFile.name}</small>}
                 <div className="duty-upload-help">Optional evidence (pdf/jpg/png/webp, max 5MB)</div>
               </div>
@@ -541,12 +535,6 @@ function DutyAttachments({ entityId, canManage }) {
       {canManage && (
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e => setFile(e.target.files?.[0] || null)} />
-          {window.IS_NATIVE && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={async () => {
-              try { const f = await window.capturePhoto(); if (f) { setFile(f); showToast('Photo ready to upload'); } }
-              catch (e) { showToast(e.message || 'Could not capture photo', 'error'); }
-            }}>📷 Photo</button>
-          )}
           <button type="button" className="btn btn-primary btn-sm" disabled={!file || uploading} onClick={upload}>
             {uploading ? 'Uploading…' : 'Upload'}
           </button>

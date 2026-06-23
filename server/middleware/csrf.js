@@ -1,5 +1,4 @@
 const crypto = require('crypto');
-const { hasBearerToken } = require('./auth');
 
 const CSRF_COOKIE = 'csrf_token';
 const CSRF_HEADER = 'x-csrf-token';
@@ -28,7 +27,6 @@ function issueCsrfToken(req, res, next) {
 
 function requireCsrf(req, res, next) {
   if (SAFE_METHODS.has(req.method)) return next();
-  if (hasBearerToken(req)) return next(); // bearer auth is not a browser cookie CSRF target
   if (!req.cookies?.token) return next(); // no session = no CSRF target
 
   const cookieToken = req.cookies?.[CSRF_COOKIE];

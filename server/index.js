@@ -45,21 +45,17 @@ if (process.env.NODE_ENV === 'production') {
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
+const { ipKeyGenerator } = rateLimit;
 
-const mobileCorsOrigins = new Set([
-  'capacitor://localhost',
-  'http://localhost',
-  'https://localhost',
-]);
 const webCorsOrigins = new Set([
   'https://ledger.monrefugeelc.com',
   ...(process.env.WEB_ORIGIN || '').split(',').map((origin) => origin.trim()).filter(Boolean),
 ]);
-const allowedCorsHeaders = 'Authorization, Content-Type, X-Client, X-CSRF-Token';
+const allowedCorsHeaders = 'Content-Type, X-CSRF-Token';
 
 function isAllowedCorsOrigin(origin) {
   if (!origin) return false;
-  if (mobileCorsOrigins.has(origin) || webCorsOrigins.has(origin)) return true;
+  if (webCorsOrigins.has(origin)) return true;
   return /^https?:\/\/localhost(?::\d+)?$/.test(origin);
 }
 
@@ -128,7 +124,7 @@ const loginIpLimiter = rateLimit({
 const loginAccountLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
-  keyGenerator: (req) => `${req.ip}:${(req.body?.email || req.body?.username || '').toLowerCase().trim()}`,
+  keyGenerator: (req) => `${ipKeyGenerator(req.ip)}:${(req.body?.email || req.body?.username || '').toLowerCase().trim()}`,
   message: { error: 'Too many login attempts. Try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -142,7 +138,7 @@ const mutationLimiter = rateLimit({
     // peekUserId decodes the JWT directly, so this works even though this
     // limiter runs before the per-route requireAuth populates req.user.
     const userId = req.user?.id ?? peekUserId(req);
-    return userId ? `user:${userId}` : `ip:${req.ip}`;
+    return userId ? `user:${userId}` : `ip:${ipKeyGenerator(req.ip)}`;
   },
   message: { error: 'Too many requests. Try again in 15 minutes.' },
   standardHeaders: true,

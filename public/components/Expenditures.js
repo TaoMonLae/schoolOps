@@ -255,12 +255,6 @@ window.Expenditures = function Expenditures() {
               <div className="form-group span2">
                 <label>Receipt Attachment (pdf/jpg/png/webp, max 5MB)</label>
                 <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" onChange={e => setUploadFile(e.target.files?.[0] || null)} />
-                {window.IS_NATIVE && (
-                  <button type="button" className="btn btn-secondary btn-sm" style={{ marginTop:6 }} onClick={async () => {
-                    try { const f = await window.capturePhoto(); if (f) { setUploadFile(f); showToast('Photo ready to upload'); } }
-                    catch (e) { showToast(e.message || 'Could not capture photo', 'error'); }
-                  }}>📷 Take / choose photo</button>
-                )}
                 {uploadFile && <small style={{ display:'block', marginTop:4, color:'var(--muted)' }}>Selected: {uploadFile.name}</small>}
               </div>
             </div>
