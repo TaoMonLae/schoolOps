@@ -330,6 +330,8 @@ function LoginPage() {
             <label htmlFor="username">Username</label>
             <input
               id="username"
+              name="username"
+              autoComplete="username"
               value={form.username}
               onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
               placeholder="Enter your username"
@@ -340,7 +342,9 @@ function LoginPage() {
             <label htmlFor="password">Password</label>
             <input
               id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
               placeholder="Enter your password"
